@@ -1,0 +1,6 @@
+order_id,customer_id,amount,status,created_at
+1,C001,150.00,delivered,2026-03-01
+2,C002,89.99,shipped,2026-03-05
+3,C003,220.50,pending,2026-03-10
+4,C001,45.00,delivered,2026-03-11
+5,C004,999.99,cancelled,2026-03-12

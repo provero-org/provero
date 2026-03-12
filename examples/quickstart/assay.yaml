@@ -1,0 +1,19 @@
+# Apache Assay - Quickstart Example
+# Run with: assay run -c examples/quickstart/assay.yaml
+
+source:
+  type: duckdb
+  table: read_csv('examples/quickstart/orders.csv')
+
+checks:
+  - not_null: [order_id, customer_id, amount]
+  - unique: order_id
+  - accepted_values:
+      column: status
+      values: [pending, shipped, delivered, cancelled]
+  - range:
+      column: amount
+      min: 0
+      max: 100000
+  - row_count:
+      min: 1

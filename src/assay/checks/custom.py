@@ -37,12 +37,18 @@ def check_custom_sql(
 
     result = connection.execute(query)
 
+    severity = (
+        Severity(check_config.severity)
+        if check_config.severity
+        else Severity.CRITICAL
+    )
+
     if not result:
         return CheckResult(
             check_name=name,
             check_type="custom_sql",
             status=Status.ERROR,
-            severity=Severity.CRITICAL,
+            severity=severity,
             observed_value="Query returned no results",
             expected_value="True",
         )
@@ -56,7 +62,7 @@ def check_custom_sql(
         check_name=name,
         check_type="custom_sql",
         status=Status.PASS if passed else Status.FAIL,
-        severity=Severity.CRITICAL,
+        severity=severity,
         observed_value=str(first_value),
         expected_value="True",
     )

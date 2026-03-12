@@ -85,6 +85,11 @@
         }
       }
     },
+    "severity": {
+      "type": "string",
+      "enum": ["info", "warning", "critical", "blocker"],
+      "description": "Override the default severity for this check"
+    },
     "check": {
       "oneOf": [
         {
@@ -95,7 +100,8 @@
                 { "type": "string" },
                 { "type": "array", "items": { "type": "string" } }
               ]
-            }
+            },
+            "severity": { "$ref": "#/$defs/severity" }
           },
           "required": ["not_null"]
         },
@@ -107,7 +113,8 @@
               "required": ["column"],
               "properties": {
                 "column": { "type": "string" },
-                "min": { "type": "number", "minimum": 0, "maximum": 1 }
+                "min": { "type": "number", "minimum": 0, "maximum": 1 },
+                "severity": { "$ref": "#/$defs/severity" }
               }
             }
           },
@@ -118,7 +125,8 @@
           "properties": {
             "unique": {
               "type": "string"
-            }
+            },
+            "severity": { "$ref": "#/$defs/severity" }
           },
           "required": ["unique"]
         },
@@ -129,7 +137,8 @@
               "type": "array",
               "items": { "type": "string" },
               "minItems": 2
-            }
+            },
+            "severity": { "$ref": "#/$defs/severity" }
           },
           "required": ["unique_combination"]
         },
@@ -144,7 +153,8 @@
                 "values": {
                   "type": "array",
                   "items": { "type": ["string", "number", "boolean"] }
-                }
+                },
+                "severity": { "$ref": "#/$defs/severity" }
               }
             }
           },
@@ -159,7 +169,8 @@
               "properties": {
                 "column": { "type": "string" },
                 "min": { "type": "number" },
-                "max": { "type": "number" }
+                "max": { "type": "number" },
+                "severity": { "$ref": "#/$defs/severity" }
               }
             }
           },
@@ -173,7 +184,8 @@
               "required": ["column", "pattern"],
               "properties": {
                 "column": { "type": "string" },
-                "pattern": { "type": "string" }
+                "pattern": { "type": "string" },
+                "severity": { "$ref": "#/$defs/severity" }
               }
             }
           },
@@ -191,7 +203,8 @@
                   "type": "string",
                   "pattern": "^\\d+[smhd]$",
                   "description": "Duration string: 30m, 24h, 7d"
-                }
+                },
+                "severity": { "$ref": "#/$defs/severity" }
               }
             }
           },
@@ -204,7 +217,8 @@
               "type": "object",
               "properties": {
                 "min": { "type": "integer", "minimum": 0 },
-                "max": { "type": "integer", "minimum": 0 }
+                "max": { "type": "integer", "minimum": 0 },
+                "severity": { "$ref": "#/$defs/severity" }
               }
             }
           },
@@ -221,7 +235,8 @@
                   "required": ["query"],
                   "properties": {
                     "name": { "type": "string" },
-                    "query": { "type": "string" }
+                    "query": { "type": "string" },
+                    "severity": { "$ref": "#/$defs/severity" }
                   }
                 }
               ]

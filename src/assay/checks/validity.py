@@ -45,11 +45,17 @@ def check_accepted_values(
     total = row["total"]
     invalid = row["invalid_count"]
 
+    severity = (
+        Severity(check_config.severity)
+        if check_config.severity
+        else Severity.CRITICAL
+    )
+
     return CheckResult(
         check_name=f"accepted_values:{col}",
         check_type="accepted_values",
         status=Status.PASS if invalid == 0 else Status.FAIL,
-        severity=Severity.CRITICAL,
+        severity=severity,
         column=col,
         observed_value=f"{invalid} invalid values",
         expected_value=f"only {values}",
@@ -97,11 +103,17 @@ def check_range(
     if max_val is not None:
         expected.append(f"max={max_val}")
 
+    severity = (
+        Severity(check_config.severity)
+        if check_config.severity
+        else Severity.CRITICAL
+    )
+
     return CheckResult(
         check_name=f"range:{col}",
         check_type="range",
         status=Status.PASS if out_of_range == 0 else Status.FAIL,
-        severity=Severity.CRITICAL,
+        severity=severity,
         column=col,
         observed_value=f"min={row['min_val']}, max={row['max_val']}",
         expected_value=", ".join(expected),
@@ -117,24 +129,67 @@ def check_regex(
     table: str,
     check_config: CheckConfig,
 ) -> CheckResult:
-    """Check that column values match a regex pattern."""
+    """Check that column values match a regex pattern.
+
+    Uses regexp_matches() for DuckDB, falls back to col ~ 'pattern'
+    (PostgreSQL) and REGEXP (MySQL/SQLite) for cross-database compatibility.
+    """
     col = check_config.column
     pattern = check_config.params.get("pattern", "")
-
-    result = connection.execute(
-        f"SELECT COUNT(*) as total, "
-        f"COUNT(*) FILTER (WHERE NOT regexp_matches({col}, '{pattern}')) as non_matching "
-        f"FROM {table} WHERE {col} IS NOT NULL"
+    severity = (
+        Severity(check_config.severity)
+        if check_config.severity
+        else Severity.WARNING
     )
-    row = result[0]
+
+    # Try DuckDB syntax first, then PostgreSQL ~, then MySQL/SQLite REGEXP
+    queries = [
+        (
+            f"SELECT COUNT(*) as total, "
+            f"COUNT(*) FILTER (WHERE NOT regexp_matches({col}, '{pattern}')) as non_matching "
+            f"FROM {table} WHERE {col} IS NOT NULL"
+        ),
+        (
+            f"SELECT COUNT(*) as total, "
+            f"SUM(CASE WHEN NOT ({col} ~ '{pattern}') THEN 1 ELSE 0 END) as non_matching "
+            f"FROM {table} WHERE {col} IS NOT NULL"
+        ),
+        (
+            f"SELECT COUNT(*) as total, "
+            f"SUM(CASE WHEN NOT ({col} REGEXP '{pattern}') THEN 1 ELSE 0 END) as non_matching "
+            f"FROM {table} WHERE {col} IS NOT NULL"
+        ),
+    ]
+
+    row = None
+    for query in queries:
+        try:
+            result = connection.execute(query)
+            row = result[0]
+            break
+        except Exception:
+            continue
+
+    if row is None:
+        return CheckResult(
+            check_name=f"regex:{col}",
+            check_type="regex",
+            status=Status.ERROR,
+            severity=severity,
+            column=col,
+            observed_value="Regex not supported by this database. "
+            "DuckDB (regexp_matches), PostgreSQL (~), and MySQL/SQLite (REGEXP) are supported.",
+            expected_value=f"matches /{pattern}/",
+        )
+
     total = row["total"]
-    non_matching = row["non_matching"]
+    non_matching = int(row["non_matching"])
 
     return CheckResult(
         check_name=f"regex:{col}",
         check_type="regex",
         status=Status.PASS if non_matching == 0 else Status.FAIL,
-        severity=Severity.WARNING,
+        severity=severity,
         column=col,
         observed_value=f"{non_matching} non-matching",
         expected_value=f"matches /{pattern}/",

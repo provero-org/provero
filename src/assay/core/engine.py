@@ -71,7 +71,11 @@ def run_suite(
                     severity=Severity.CRITICAL,
                     source=suite.source.type,
                     table=suite.source.table,
-                    observed_value=f"Batch query failed: {e}",
+                    observed_value=(
+                        f"Batch query failed: {e}. "
+                        f"Try running with --no-optimize to isolate the failing check, "
+                        f"or verify that the table '{suite.source.table}' exists and is accessible."
+                    ),
                     run_id=run_id,
                     suite=suite.name,
                 ))
@@ -86,6 +90,8 @@ def run_suite(
 
         runner = get_check_runner(check_config.check_type)
         if runner is None:
+            from assay.checks.registry import list_checks
+            available = ", ".join(sorted(list_checks()))
             results.append(CheckResult(
                 check_name=f"{check_config.check_type}:{check_config.column or ''}",
                 check_type=check_config.check_type,
@@ -94,7 +100,10 @@ def run_suite(
                 source=suite.source.type,
                 table=suite.source.table,
                 column=check_config.column,
-                observed_value=f"Unknown check type: {check_config.check_type}",
+                observed_value=(
+                    f"Unknown check type '{check_config.check_type}'. "
+                    f"Available types: {available}"
+                ),
                 run_id=run_id,
                 suite=suite.name,
             ))
@@ -113,6 +122,14 @@ def run_suite(
             result.duration_ms = int((time.monotonic() - check_start) * 1000)
             results.append(result)
         except Exception as e:
+            error_msg = str(e)
+            hint = ""
+            if "does not exist" in error_msg.lower() or "not found" in error_msg.lower():
+                hint = f" Verify that table '{suite.source.table}' exists."
+            elif "permission" in error_msg.lower() or "denied" in error_msg.lower():
+                hint = " Check your database permissions."
+            elif "connection" in error_msg.lower() or "refused" in error_msg.lower():
+                hint = " Verify that the database is running and the connection string is correct."
             results.append(CheckResult(
                 check_name=f"{check_config.check_type}:{check_config.column or ''}",
                 check_type=check_config.check_type,
@@ -121,7 +138,7 @@ def run_suite(
                 source=suite.source.type,
                 table=suite.source.table,
                 column=check_config.column,
-                observed_value=str(e),
+                observed_value=f"{error_msg}{hint}",
                 duration_ms=int((time.monotonic() - check_start) * 1000),
                 run_id=run_id,
                 suite=suite.name,

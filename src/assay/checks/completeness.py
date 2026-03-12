@@ -34,6 +34,12 @@ def check_not_null(
     """Check that column(s) have no null values."""
     columns = check_config.columns or ([check_config.column] if check_config.column else [])
 
+    severity = (
+        Severity(check_config.severity)
+        if check_config.severity
+        else Severity.CRITICAL
+    )
+
     for col in columns:
         result = connection.execute(
             f"SELECT COUNT(*) as total, "
@@ -49,7 +55,7 @@ def check_not_null(
                 check_name=f"not_null:{col}",
                 check_type="not_null",
                 status=Status.FAIL,
-                severity=Severity.CRITICAL,
+                severity=severity,
                 column=col,
                 observed_value=f"{null_count} nulls",
                 expected_value="0 nulls",
@@ -63,6 +69,7 @@ def check_not_null(
         check_name=f"not_null:{col_str}",
         check_type="not_null",
         status=Status.PASS,
+        severity=severity,
         column=columns[0] if len(columns) == 1 else None,
         observed_value="0 nulls",
         expected_value="0 nulls",
@@ -89,11 +96,17 @@ def check_completeness(
     non_null = row["non_null_count"]
     completeness = non_null / total if total > 0 else 0.0
 
+    severity = (
+        Severity(check_config.severity)
+        if check_config.severity
+        else Severity.CRITICAL
+    )
+
     return CheckResult(
         check_name=f"completeness:{col}",
         check_type="completeness",
         status=Status.PASS if completeness >= min_completeness else Status.FAIL,
-        severity=Severity.CRITICAL,
+        severity=severity,
         column=col,
         observed_value=f"{completeness:.1%}",
         expected_value=f">= {min_completeness:.1%}",

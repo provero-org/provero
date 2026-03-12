@@ -48,11 +48,17 @@ def check_row_count(
     if max_count is not None:
         expected_parts.append(f"<= {max_count:,}")
 
+    severity = (
+        Severity(check_config.severity)
+        if check_config.severity
+        else Severity.CRITICAL
+    )
+
     return CheckResult(
         check_name="row_count",
         check_type="row_count",
         status=Status.PASS if passed else Status.FAIL,
-        severity=Severity.CRITICAL,
+        severity=severity,
         observed_value=f"{total:,}",
         expected_value=" and ".join(expected_parts) if expected_parts else "> 0",
         row_count=total,

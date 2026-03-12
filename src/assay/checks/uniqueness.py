@@ -42,11 +42,17 @@ def check_unique(
     distinct = row["distinct_count"]
     duplicates = total - distinct
 
+    severity = (
+        Severity(check_config.severity)
+        if check_config.severity
+        else Severity.CRITICAL
+    )
+
     return CheckResult(
         check_name=f"unique:{col}",
         check_type="unique",
         status=Status.PASS if duplicates == 0 else Status.FAIL,
-        severity=Severity.CRITICAL,
+        severity=severity,
         column=col,
         observed_value=f"{duplicates} duplicates",
         expected_value="0 duplicates",
@@ -80,11 +86,17 @@ def check_unique_combination(
     distinct = result[0]["distinct_count"]
     duplicates = total - distinct
 
+    severity = (
+        Severity(check_config.severity)
+        if check_config.severity
+        else Severity.CRITICAL
+    )
+
     return CheckResult(
         check_name=f"unique_combination:{col_str}",
         check_type="unique_combination",
         status=Status.PASS if duplicates == 0 else Status.FAIL,
-        severity=Severity.CRITICAL,
+        severity=severity,
         observed_value=f"{duplicates} duplicates",
         expected_value="0 duplicates",
         row_count=total,

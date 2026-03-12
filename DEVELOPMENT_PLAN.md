@@ -50,16 +50,16 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 - [x] Connector factory (auto-creates connector from source config)
 - [x] Environment variable resolution in connection strings
 - [x] DuckDB: handle read_csv/read_parquet expressions
-- [ ] Freshness check: fix for DuckDB (EXTRACT EPOCH syntax)
-- [ ] unique_combination check: end-to-end tests
-- [ ] regex check: cross-database compatibility
+- [x] Freshness check: fix for DuckDB (EXTRACT EPOCH syntax)
+- [x] unique_combination check: end-to-end tests
+- [x] regex check: cross-database compatibility
 - [x] Result store: SQLite backend (persist results locally)
 - [x] Historical results query via CLI: `assay history`
 - [x] Sampling support for large tables (in profiler)
-- [ ] Configurable severity per check in AQL
+- [x] Configurable severity per check in AQL
 - [x] `assay validate` command (validate assay.yaml syntax without running)
 - [x] JSON Schema for assay.yaml (published as aql-spec/schema.json)
-- [ ] Error messages: clear, actionable, with suggestions
+- [x] Error messages: clear, actionable, with suggestions
 
 ### Success Criteria
 
@@ -345,7 +345,7 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 | Phase | Description | Weeks | Target |
 |-------|-------------|-------|--------|
 | 0 | Foundation | 1-2 | Done |
-| 1 | Core engine | 3-6 | Apr 2026 |
+| 1 | Core engine | 3-6 | Done |
 | 2 | Anomaly detection | 7-10 | May 2026 |
 | 3 | Data contracts | 11-14 | Jun 2026 |
 | 4 | Airflow provider | 15-18 | Jul 2026 |

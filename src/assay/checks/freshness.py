@@ -63,20 +63,31 @@ def check_freshness(
     max_age_str = check_config.params.get("max_age", "24h")
     max_age_seconds = _parse_duration(max_age_str)
 
-    result = connection.execute(
-        f"SELECT MAX({col}) as latest, "
-        f"EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - MAX({col}))) as age_seconds "
-        f"FROM {table}"
-    )
+    # Use epoch() which works on DuckDB, and EXTRACT(EPOCH FROM ...) as fallback
+    # for PostgreSQL/other databases.
+    try:
+        result = connection.execute(
+            f"SELECT MAX({col}) as latest, "
+            f"epoch(CURRENT_TIMESTAMP) - epoch(MAX({col})) as age_seconds "
+            f"FROM {table}"
+        )
+    except Exception:
+        result = connection.execute(
+            f"SELECT MAX({col}) as latest, "
+            f"EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - MAX({col}))) as age_seconds "
+            f"FROM {table}"
+        )
+
     row = result[0]
-    age_seconds = int(row["age_seconds"]) if row["age_seconds"] is not None else None
+    raw_age = row["age_seconds"]
+    age_seconds = int(float(raw_age)) if raw_age is not None else None
 
     if age_seconds is None:
         return CheckResult(
             check_name=f"freshness:{col}",
             check_type="freshness",
             status=Status.FAIL,
-            severity=Severity.CRITICAL,
+            severity=check_config.severity or Severity.CRITICAL,
             column=col,
             observed_value="no data",
             expected_value=f"< {max_age_str}",
@@ -86,7 +97,7 @@ def check_freshness(
         check_name=f"freshness:{col}",
         check_type="freshness",
         status=Status.PASS if age_seconds <= max_age_seconds else Status.FAIL,
-        severity=Severity.CRITICAL,
+        severity=check_config.severity or Severity.CRITICAL,
         column=col,
         observed_value=f"{_format_duration(age_seconds)} ago",
         expected_value=f"< {max_age_str}",

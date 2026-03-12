@@ -42,6 +42,7 @@ class CheckConfig(BaseModel):
     column: str | None = None
     columns: list[str] = Field(default_factory=list)
     params: dict[str, Any] = Field(default_factory=dict)
+    severity: str | None = None
 
 
 class SuiteConfig(BaseModel):
@@ -80,15 +81,24 @@ def parse_check(raw: dict[str, Any] | str) -> CheckConfig:
         if isinstance(value, dict):
             column = value.pop("column", None)
             columns = value.pop("columns", [])
+            severity = value.pop("severity", None)
             return CheckConfig(
                 check_type=check_type,
                 column=column,
                 columns=columns,
                 params=value,
+                severity=severity,
             )
         return CheckConfig(check_type=check_type, params={"value": value})
 
-    msg = f"Invalid check definition: {raw}"
+    msg = (
+        f"Invalid check definition: {raw}. "
+        f"Expected one of: "
+        f"'not_null: column', "
+        f"{{not_null: [col1, col2]}}, "
+        f"{{range: {{column: col, min: 0, max: 100}}}}, "
+        f"or similar. See https://github.com/andreahlert/assay for syntax reference."
+    )
     raise ValueError(msg)
 
 

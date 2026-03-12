@@ -58,6 +58,23 @@ class TestParseCheck:
         assert check.column == "status"
         assert check.params["values"] == ["a", "b", "c"]
 
+    def test_severity_parsed_from_dict(self):
+        check = parse_check({
+            "range": {"column": "amount", "min": 0, "max": 1000, "severity": "warning"}
+        })
+        assert check.check_type == "range"
+        assert check.severity == "warning"
+        assert "severity" not in check.params
+
+    def test_severity_none_by_default(self):
+        check = parse_check({"unique": "order_id"})
+        assert check.severity is None
+
+    def test_invalid_check_error_message(self):
+        import pytest
+        with pytest.raises(ValueError, match="Invalid check definition"):
+            parse_check({})
+
 
 class TestCompileFile:
     def test_simple_format(self, tmp_path: Path):

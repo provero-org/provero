@@ -42,19 +42,22 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 
 ### Tasks
 
-- [ ] PostgreSQL connector (via SQLAlchemy)
-- [ ] MySQL connector
+- [x] PostgreSQL connector (via SQLAlchemy)
+- [x] Generic SQLAlchemy connector (MySQL, SQLite, any SA-supported DB)
 - [ ] SQL query optimizer (batch multiple checks into single query)
-- [ ] `assay profile` command (statistical profiling of data sources)
-- [ ] `assay profile --suggest` (auto-generate checks from data profile)
+- [x] `assay profile` command (statistical profiling of data sources)
+- [x] `assay profile --suggest` (auto-generate checks from data profile)
+- [x] Connector factory (auto-creates connector from source config)
+- [x] Environment variable resolution in connection strings
+- [x] DuckDB: handle read_csv/read_parquet expressions
 - [ ] Freshness check: fix for DuckDB (EXTRACT EPOCH syntax)
 - [ ] unique_combination check: end-to-end tests
 - [ ] regex check: cross-database compatibility
 - [ ] Result store: SQLite backend (persist results locally)
 - [ ] Historical results query via CLI: `assay history`
-- [ ] Sampling support for large tables
+- [x] Sampling support for large tables (in profiler)
 - [ ] Configurable severity per check in AQL
-- [ ] `assay validate` command (validate assay.yaml syntax without running)
+- [x] `assay validate` command (validate assay.yaml syntax without running)
 - [ ] JSON Schema for assay.yaml (published as aql-spec/schema.json)
 - [ ] Error messages: clear, actionable, with suggestions
 

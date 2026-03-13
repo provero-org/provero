@@ -9,21 +9,15 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: assay-core
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
       - run: uv sync --dev
-      - run: uv run ruff check src/ tests/
-      - run: uv run ruff format --check src/ tests/
+      - run: uv run ruff check assay-core/src/ assay-core/tests/
+      - run: uv run ruff format --check assay-core/src/ assay-core/tests/
 
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: assay-core
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
@@ -33,24 +27,18 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: uv sync --dev
-      - run: uv run pytest tests/ -v --cov=src/provero --cov-report=term-missing
+      - run: uv run pytest assay-core/tests/ -v --cov=assay-core/src/provero --cov-report=term-missing
 
   typecheck:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: assay-core
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
       - run: uv sync --dev
-      - run: uv run mypy src/provero/
+      - run: uv run mypy assay-core/src/provero/
 
   license-check:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: assay-core
     steps:
       - uses: actions/checkout@v4
       - name: Check Apache license headers
@@ -60,7 +48,7 @@ jobs:
             if ! head -5 "$f" | grep -q "Licensed to the Apache Software Foundation"; then
               missing+=("$f")
             fi
-          done < <(find src/provero -name "*.py" -type f)
+          done < <(find assay-core/src/provero -name "*.py" -type f)
           if [ ${#missing[@]} -ne 0 ]; then
             echo "Files missing Apache license header:"
             printf '  %s\n' "${missing[@]}"
@@ -70,16 +58,13 @@ jobs:
 
   build-verify:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: assay-core
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
       - run: uv sync --dev
       - name: Build and verify wheel contents
         run: |
-          uv build
+          cd assay-core && uv build
           whl=$(ls dist/*.whl | head -1)
           python -c "
           import zipfile, sys

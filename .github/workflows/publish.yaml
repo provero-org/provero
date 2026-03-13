@@ -7,15 +7,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: assay-core
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
       - run: uv sync --dev
-      - run: uv run pytest tests/ -v --tb=short
-      - run: uv build
+      - run: uv run pytest assay-core/tests/ -v --tb=short
+      - run: cd assay-core && uv build
       - uses: actions/upload-artifact@v4
         with:
           name: dist

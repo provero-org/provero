@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & Ideas
+    url: https://github.com/provero-org/provero/discussions
+    about: Use Discussions for questions, ideas, and show-and-tell
+  - name: Security Vulnerability
+    url: https://github.com/provero-org/provero/security/advisories/new
+    about: Report security vulnerabilities privately

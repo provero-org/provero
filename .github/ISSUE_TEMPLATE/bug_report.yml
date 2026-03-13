@@ -1,0 +1,43 @@
+name: Bug Report
+description: Report a bug in Provero
+labels: ["type/bug", "status/needs-triage"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Paste your provero.yaml and the command you ran
+  - type: input
+    id: version
+    attributes:
+      label: Provero version
+      placeholder: "0.1.0"
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: "3.12"
+  - type: dropdown
+    id: connector
+    attributes:
+      label: Connector
+      options:
+        - DuckDB
+        - PostgreSQL
+        - DataFrame
+        - MySQL
+        - SQLite
+        - Snowflake
+        - BigQuery
+        - Redshift
+        - Other

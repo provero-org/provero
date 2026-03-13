@@ -1,0 +1,66 @@
+# E-commerce pipeline data quality checks
+# This example validates a typical e-commerce data pipeline with
+# orders, customers, and products tables.
+
+version: "1.0"
+
+sources:
+  warehouse:
+    type: duckdb
+    # For production, use:
+    # type: postgres
+    # connection: ${WAREHOUSE_URI}
+
+suites:
+  - name: orders_quality
+    source: warehouse
+    table: orders
+    tags: [critical, daily]
+    checks:
+      - not_null: [order_id, customer_id, order_date, total_amount]
+      - unique: order_id
+      - row_count:
+          min: 1
+      - range:
+          column: total_amount
+          min: 0
+          max: 100000
+      - accepted_values:
+          column: status
+          values: [pending, confirmed, shipped, delivered, cancelled, refunded]
+      - freshness:
+          column: order_date
+          max_age: 24h
+      - completeness:
+          column: shipping_address
+          min: 0.90
+
+  - name: customers_quality
+    source: warehouse
+    table: customers
+    tags: [critical, daily]
+    checks:
+      - not_null: [customer_id, email, created_at]
+      - unique: customer_id
+      - unique: email
+      - regex:
+          column: email
+          pattern: "^[^@]+@[^@]+\\.[^@]+$"
+      - row_count:
+          min: 1
+
+  - name: products_quality
+    source: warehouse
+    table: products
+    tags: [standard, weekly]
+    checks:
+      - not_null: [product_id, name, price]
+      - unique: product_id
+      - range:
+          column: price
+          min: 0
+          severity: warning
+      - completeness:
+          column: description
+          min: 0.80
+          severity: warning

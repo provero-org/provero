@@ -1,4 +1,4 @@
-# Assay - Development Plan
+# Provero - Development Plan
 
 ## Overview
 
@@ -14,14 +14,14 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 ### Tasks
 
 - [x] Project scaffolding (pyproject.toml, CI, linting, structure)
-- [x] AQL compiler: parse assay.yaml into execution plan
+- [x] AQL compiler: parse provero.yaml into execution plan
 - [x] Result models (CheckResult, SuiteResult)
 - [x] Check registry (pluggable check system)
 - [x] Core checks: not_null, unique, accepted_values, range, row_count, custom_sql
 - [x] Completeness check
 - [x] DuckDB connector (embedded, for files)
 - [x] Check engine: execute suite against connector
-- [x] CLI: `assay init`, `assay run`, `assay version`
+- [x] CLI: `provero init`, `provero run`, `provero version`
 - [x] Rich table output
 - [x] JSON output
 - [x] Quickstart example (orders.csv)
@@ -30,8 +30,8 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 
 ### Success Criteria
 
-- `assay init` creates a template
-- `assay run` executes checks against a CSV file and prints results
+- `provero init` creates a template
+- `provero run` executes checks against a CSV file and prints results
 - All tests pass on Python 3.11, 3.12, 3.13
 
 ---
@@ -45,8 +45,8 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 - [x] PostgreSQL connector (via SQLAlchemy)
 - [x] Generic SQLAlchemy connector (MySQL, SQLite, any SA-supported DB)
 - [x] SQL query optimizer (batch multiple checks into single query)
-- [x] `assay profile` command (statistical profiling of data sources)
-- [x] `assay profile --suggest` (auto-generate checks from data profile)
+- [x] `provero profile` command (statistical profiling of data sources)
+- [x] `provero profile --suggest` (auto-generate checks from data profile)
 - [x] Connector factory (auto-creates connector from source config)
 - [x] Environment variable resolution in connection strings
 - [x] DuckDB: handle read_csv/read_parquet expressions
@@ -54,11 +54,11 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 - [x] unique_combination check: end-to-end tests
 - [x] regex check: cross-database compatibility
 - [x] Result store: SQLite backend (persist results locally)
-- [x] Historical results query via CLI: `assay history`
+- [x] Historical results query via CLI: `provero history`
 - [x] Sampling support for large tables (in profiler)
 - [x] Configurable severity per check in AQL
-- [x] `assay validate` command (validate assay.yaml syntax without running)
-- [x] JSON Schema for assay.yaml (published as aql-spec/schema.json)
+- [x] `provero validate` command (validate provero.yaml syntax without running)
+- [x] JSON Schema for provero.yaml (published as aql-spec/schema.json)
 - [x] Error messages: clear, actionable, with suggestions
 
 ### Success Criteria
@@ -66,7 +66,7 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 - Run checks against PostgreSQL and DuckDB
 - Profile a table and get auto-suggested checks
 - Results persisted locally in SQLite
-- JSON Schema validates all example assay.yaml files
+- JSON Schema validates all example provero.yaml files
 
 ---
 
@@ -76,25 +76,25 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 
 ### Tasks
 
-- [ ] Anomaly detector orchestrator
-- [ ] Z-Score method
-- [ ] MAD (Median Absolute Deviation) method
-- [ ] IQR (Interquartile Range) method
-- [ ] Sensitivity presets (low, medium, high)
-- [ ] `anomaly` check type in AQL
-- [ ] `row_count_change` check (compare vs previous run)
-- [ ] Anomaly results in CLI output (warning indicators)
-- [ ] Historical metrics storage (time-series in SQLite)
+- [x] Anomaly detector orchestrator
+- [x] Z-Score method
+- [x] MAD (Median Absolute Deviation) method
+- [x] IQR (Interquartile Range) method
+- [x] Sensitivity presets (low, medium, high)
+- [x] `anomaly` check type in AQL
+- [x] `row_count_change` check (compare vs previous run)
+- [x] Anomaly results in CLI output (warning indicators)
+- [x] Historical metrics storage (time-series in SQLite)
 - [ ] Trend visualization in terminal (sparklines via Rich)
-- [ ] `assay watch` command (continuous monitoring mode)
-- [ ] Tests with synthetic time-series data
+- [ ] `provero watch` command (continuous monitoring mode)
+- [x] Tests with synthetic time-series data
 - [ ] Documentation: anomaly detection guide
 
 ### Success Criteria
 
-- Detect row count anomalies based on 30-day history
-- Z-Score and MAD methods produce correct results on known distributions
-- `assay watch` runs checks on interval and alerts on anomalies
+- ~~Detect row count anomalies based on 30-day history~~ Done
+- ~~Z-Score and MAD methods produce correct results on known distributions~~ Done
+- `provero watch` runs checks on interval and alerts on anomalies
 
 ---
 
@@ -104,24 +104,24 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 
 ### Tasks
 
-- [ ] Contract model (schema + SLAs + checks + ownership + version)
-- [ ] Contract section in AQL (contracts: key in assay.yaml)
-- [ ] Contract validation against data
+- [x] Contract model (schema + SLAs + checks + ownership + version)
+- [x] Contract section in AQL (contracts: key in provero.yaml)
+- [x] Contract validation against data
 - [ ] Contract versioning (semver)
-- [ ] `assay contract validate` command
-- [ ] `assay contract diff v1 v2` command
-- [ ] `assay contract breaking-changes` command
+- [x] `provero contract validate` command
+- [x] `provero contract diff v1 v2` command
+- [ ] `provero contract breaking-changes` command
 - [ ] Contract registry (local file-based, git-friendly)
-- [ ] On-violation actions: block, warn, quarantine
-- [ ] Contract compliance report (HTML)
+- [x] On-violation actions: block, warn, quarantine
+- [x] Contract compliance report (HTML)
 - [ ] Example: producer/consumer workflow
 - [ ] Documentation: data contracts guide
 
 ### Success Criteria
 
-- Define a contract, run validation, see pass/fail
-- Detect breaking changes between contract versions
-- Generate compliance report
+- ~~Define a contract, run validation, see pass/fail~~ Done
+- ~~Detect breaking changes between contract versions~~ Done
+- ~~Generate compliance report~~ Done
 
 ---
 
@@ -131,23 +131,23 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 
 ### Tasks
 
-- [ ] assay-airflow package setup
-- [ ] AssayCheckOperator (run checks as Airflow task)
-- [ ] AssaySensor (wait for data quality to pass)
-- [ ] AssayHook (API client for Assay server)
-- [ ] @assay_check decorator for @task functions
-- [ ] DAG auto-generation from assay.yaml files
-- [ ] Airflow connection type for Assay
+- [x] provero-airflow package setup
+- [x] ProveroCheckOperator (run checks as Airflow task)
+- [ ] ProveroSensor (wait for data quality to pass)
+- [ ] ProveroHook (API client for Provero server)
+- [x] @provero_check decorator for @task functions
+- [ ] DAG auto-generation from provero.yaml files
+- [ ] Airflow connection type for Provero
 - [ ] provider.yaml metadata
 - [ ] Integration tests with Airflow 2.9+ and 3.0
 - [ ] Example DAGs
 - [ ] Documentation: Airflow integration guide
-- [ ] Publish to PyPI as assay-airflow
+- [ ] Publish to PyPI as provero-airflow
 
 ### Success Criteria
 
-- Install provider, use operator in DAG, see results in Airflow logs
-- DAG auto-generation works from assay.yaml directory
+- ~~Install provider, use operator in DAG, see results in Airflow logs~~ Done
+- DAG auto-generation works from provero.yaml directory
 - Tests pass with Airflow 2.9 and 3.0
 
 ---
@@ -158,15 +158,15 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 
 ### Tasks
 
-- [ ] Snowflake connector
-- [ ] BigQuery connector
-- [ ] Redshift connector
-- [ ] Databricks connector (via SQLAlchemy)
+- [x] Snowflake connector (via SQLAlchemy generic)
+- [x] BigQuery connector (via SQLAlchemy generic)
+- [x] Redshift connector (via SQLAlchemy generic)
+- [x] Databricks connector (via SQLAlchemy)
 - [ ] Spark DataFrame connector
-- [ ] Polars DataFrame connector
-- [ ] HTML report generator (Jinja2 templates)
-- [ ] Report: suite summary, check details, trends, failing rows
-- [ ] `assay run --report html` command
+- [x] Polars DataFrame connector
+- [x] HTML report generator (Jinja2 templates)
+- [x] Report: suite summary, check details, trends, failing rows
+- [x] `provero run --report html` command
 - [ ] Report publishing to S3/GCS
 - [ ] OpenLineage event export
 - [ ] Export to Great Expectations format
@@ -175,8 +175,8 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 
 ### Success Criteria
 
-- Run checks against Snowflake, BigQuery, Redshift
-- Generate HTML report viewable in browser
+- ~~Run checks against Snowflake, BigQuery, Redshift~~ Done (via SQLAlchemy)
+- ~~Generate HTML report viewable in browser~~ Done
 - Export rules to GX and Soda formats
 
 ---
@@ -187,11 +187,11 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 
 ### Tasks
 
-- [ ] Alert system: dispatch alerts based on check results
-- [ ] Slack integration (webhook)
-- [ ] PagerDuty integration
+- [x] Alert system: dispatch alerts based on check results
+- [x] Slack integration (via generic webhook)
+- [x] PagerDuty integration (via generic webhook)
 - [ ] Email integration (SMTP)
-- [ ] Generic webhook integration
+- [x] Generic webhook integration
 - [ ] Block downstream action (fail pipeline)
 - [ ] Quarantine action (move bad rows to quarantine table)
 - [ ] Trigger action (trigger external pipeline on failure/drift)
@@ -214,7 +214,7 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 
 ### Tasks
 
-- [ ] FastAPI server (`assay server`)
+- [ ] FastAPI server (`provero server`)
 - [ ] API routes: /checks, /contracts, /reports, /health
 - [ ] API authentication (API keys)
 - [ ] PostgreSQL result store (server mode)
@@ -222,13 +222,13 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 - [ ] WebSocket for real-time check progress
 - [ ] API documentation (auto-generated OpenAPI spec)
 - [ ] Docker image
-- [ ] docker-compose for quick start (Assay + PostgreSQL)
+- [ ] docker-compose for quick start (Provero + PostgreSQL)
 - [ ] Helm chart (Kubernetes deployment)
 - [ ] Documentation: server mode guide
 
 ### Success Criteria
 
-- `assay server` starts, API responds, checks can be triggered via API
+- `provero server` starts, API responds, checks can be triggered via API
 - Docker image works out of the box
 - OpenAPI spec is complete and accurate
 
@@ -246,7 +246,7 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 - [ ] Window types: tumbling, sliding
 - [ ] Streaming check types: schema, throughput, latency, null_rate
 - [ ] Streaming anomaly detection (on windowed metrics)
-- [ ] `assay watch --stream` command
+- [ ] `provero watch --stream` command
 - [ ] Streaming section in AQL
 - [ ] Backpressure handling
 - [ ] Documentation: streaming guide
@@ -265,17 +265,17 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 
 ### Tasks
 
-- [ ] assay-flyte package
-- [ ] @assay_check decorator for Flyte tasks
-- [ ] Flyte type transformer for AssayResult
+- [ ] provero-flyte package
+- [ ] @provero_check decorator for Flyte tasks
+- [ ] Flyte type transformer for ProveroResult
 - [ ] Example Flyte workflow with quality gates
 - [ ] Documentation: Flyte integration guide
-- [ ] Blog post: "Using Assay with Flyte"
+- [ ] Blog post: "Using Provero with Flyte"
 
 ### Success Criteria
 
-- Assay works as Flyte plugin
-- Same assay.yaml used with both Airflow and Flyte
+- Provero works as Flyte plugin
+- Same provero.yaml used with both Airflow and Flyte
 
 ---
 
@@ -286,13 +286,13 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 ### Tasks
 
 - [ ] AQL Specification v1.0 document
-- [ ] JSON Schema v1.0 for assay.yaml
+- [ ] JSON Schema v1.0 for provero.yaml
 - [ ] AQL compatibility test suite (for other tools to validate their AQL support)
 - [ ] Migration guides: from Great Expectations, from Soda, from dbt tests
-- [ ] Website: assay.dev (landing page, docs, blog)
+- [ ] Website: provero.dev (landing page, docs, blog)
 - [ ] Conference talk proposal (Airflow Summit, Data Council, PyCon)
-- [ ] Blog: "Why we built Assay" (story, positioning, differentiation)
-- [ ] Blog: "From Griffin to Assay: lessons learned"
+- [ ] Blog: "Why we built Provero" (story, positioning, differentiation)
+- [ ] Blog: "From Griffin to Provero: lessons learned"
 - [ ] Outreach to potential committers from other organizations
 - [ ] Identify 3+ organizations willing to be listed as adopters
 - [ ] Identify ASF Champion (potiuk) and Mentors (jscheffl + others)
@@ -300,7 +300,7 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 ### Success Criteria
 
 - AQL spec published and reviewable
-- At least 3 organizations using Assay or committed to using it
+- At least 3 organizations using Provero or committed to using it
 - Champion and 3 mentors confirmed
 
 ---
@@ -346,11 +346,11 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 |-------|-------------|-------|--------|
 | 0 | Foundation | 1-2 | Done |
 | 1 | Core engine | 3-6 | Done |
-| 2 | Anomaly detection | 7-10 | May 2026 |
-| 3 | Data contracts | 11-14 | Jun 2026 |
-| 4 | Airflow provider | 15-18 | Jul 2026 |
-| 5 | Cloud connectors & reporting | 19-22 | Aug 2026 |
-| 6 | Alerts & actions | 23-26 | Sep 2026 |
+| 2 | Anomaly detection | 7-10 | Done (partial) |
+| 3 | Data contracts | 11-14 | Done (partial) |
+| 4 | Airflow provider | 15-18 | Done (partial) |
+| 5 | Cloud connectors & reporting | 19-22 | Done (partial) |
+| 6 | Alerts & actions | 23-26 | Done (partial) |
 | 7 | Server mode & API | 27-30 | Oct 2026 |
 | 8 | Streaming | 31-34 | Nov 2026 |
 | 9 | Flyte plugin | 35-36 | Dec 2026 |

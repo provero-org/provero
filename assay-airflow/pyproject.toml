@@ -1,0 +1,32 @@
+[project]
+name = "provero-airflow"
+version = "0.1.0-dev"
+description = "Provero Airflow provider: ProveroCheckOperator and decorators"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+authors = [
+    { name = "Provero Contributors" },
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Framework :: Apache Airflow",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+]
+
+dependencies = [
+    "provero>=0.0.1",
+    "apache-airflow>=2.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/provero"]

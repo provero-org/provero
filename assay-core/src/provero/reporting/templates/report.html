@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assay Report: {{ suite_name }}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #1a1a2e; line-height: 1.6; padding: 2rem; }
+  .container { max-width: 960px; margin: 0 auto; }
+  .header { background: #fff; border-radius: 8px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+  .header h1 { font-size: 1.5rem; font-weight: 600; }
+  .badge { padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; }
+  .badge-pass { background: #d4edda; color: #155724; }
+  .badge-fail { background: #f8d7da; color: #721c24; }
+  .badge-warn { background: #fff3cd; color: #856404; }
+  .timestamp { color: #6c757d; font-size: 0.85rem; }
+  .summary { background: #fff; border-radius: 8px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .summary h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+  .stats { display: flex; gap: 2rem; margin-bottom: 1rem; }
+  .stat { text-align: center; }
+  .stat-value { font-size: 1.8rem; font-weight: 700; }
+  .stat-label { font-size: 0.8rem; color: #6c757d; text-transform: uppercase; }
+  .stat-pass .stat-value { color: #28a745; }
+  .stat-fail .stat-value { color: #dc3545; }
+  .stat-warn .stat-value { color: #ffc107; }
+  .score-bar { background: #e9ecef; border-radius: 4px; height: 24px; margin-top: 0.5rem; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; color: #fff; min-width: 2rem; transition: width 0.5s; }
+  .score-high { background: #28a745; }
+  .score-med { background: #ffc107; }
+  .score-low { background: #dc3545; }
+  .checks { background: #fff; border-radius: 8px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .checks h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 2px solid #dee2e6; font-size: 0.8rem; text-transform: uppercase; color: #6c757d; }
+  td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; }
+  tr:hover { background: #f8f9fa; }
+  .status-pass { color: #28a745; font-weight: 600; }
+  .status-fail { color: #dc3545; font-weight: 600; }
+  .status-warn { color: #ffc107; font-weight: 600; }
+  .status-error { color: #dc3545; font-weight: 600; }
+  .status-skip { color: #6c757d; }
+  .failing-section { background: #fff; border-radius: 8px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #dc3545; }
+  .failing-section h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #dc3545; }
+  .failing-check { margin-bottom: 1.5rem; }
+  .failing-check h3 { font-size: 0.95rem; margin-bottom: 0.5rem; }
+  .query { background: #f8f9fa; padding: 0.75rem; border-radius: 4px; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.8rem; overflow-x: auto; margin-bottom: 0.5rem; }
+  .sample-table { margin-top: 0.5rem; }
+  .sample-table td, .sample-table th { font-size: 0.8rem; padding: 0.3rem 0.5rem; }
+  .contracts { background: #fff; border-radius: 8px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #6f42c1; }
+  .contracts h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #6f42c1; }
+  .violation { padding: 0.5rem 0; border-bottom: 1px solid #f0f0f0; }
+  .violation:last-child { border-bottom: none; }
+  .drift-added { color: #28a745; }
+  .drift-removed { color: #dc3545; }
+  .drift-changed { color: #ffc107; }
+  .footer { text-align: center; color: #6c757d; font-size: 0.8rem; padding: 1rem; }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <h1>{{ suite_name }}</h1>
+      <span class="timestamp">{{ timestamp }}</span>
+    </div>
+    <span class="badge badge-{{ status }}">{{ status | upper }}</span>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary">
+    <h2>Summary</h2>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value">{{ total }}</div>
+        <div class="stat-label">Total</div>
+      </div>
+      <div class="stat stat-pass">
+        <div class="stat-value">{{ passed }}</div>
+        <div class="stat-label">Passed</div>
+      </div>
+      <div class="stat stat-fail">
+        <div class="stat-value">{{ failed }}</div>
+        <div class="stat-label">Failed</div>
+      </div>
+      <div class="stat stat-warn">
+        <div class="stat-value">{{ warned }}</div>
+        <div class="stat-label">Warned</div>
+      </div>
+      {% if errored > 0 %}
+      <div class="stat stat-fail">
+        <div class="stat-value">{{ errored }}</div>
+        <div class="stat-label">Errored</div>
+      </div>
+      {% endif %}
+    </div>
+    <div>
+      <strong>Quality Score: {{ quality_score }}/100</strong>
+      <div class="score-bar">
+        <div class="score-fill {% if quality_score >= 80 %}score-high{% elif quality_score >= 50 %}score-med{% else %}score-low{% endif %}" style="width: {{ quality_score }}%">
+          {{ quality_score }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Check Results -->
+  <div class="checks">
+    <h2>Check Results</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Check</th>
+          <th>Column</th>
+          <th>Status</th>
+          <th>Observed</th>
+          <th>Expected</th>
+          <th>Severity</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for check in checks %}
+        <tr>
+          <td>{{ check.check_type }}</td>
+          <td>{{ check.column or '-' }}</td>
+          <td class="status-{{ check.status }}">{{ check.status | upper }}</td>
+          <td>{{ check.observed_value }}</td>
+          <td>{{ check.expected_value }}</td>
+          <td>{{ check.severity }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Failing Rows -->
+  {% if failing_checks %}
+  <div class="failing-section">
+    <h2>Failing Checks Detail</h2>
+    {% for check in failing_checks %}
+    <div class="failing-check">
+      <h3>{{ check.check_name }}</h3>
+      {% if check.failing_rows_query %}
+      <div class="query">{{ check.failing_rows_query }}</div>
+      {% endif %}
+      {% if check.failing_rows_sample %}
+      <table class="sample-table">
+        <thead>
+          <tr>
+            {% for key in check.failing_rows_sample[0].keys() %}
+            <th>{{ key }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in check.failing_rows_sample %}
+          <tr>
+            {% for val in row.values() %}
+            <td>{{ val }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Contract Violations -->
+  {% if contract_results %}
+  <div class="contracts">
+    <h2>Contract Validation</h2>
+    {% for cr in contract_results %}
+    <h3>{{ cr.contract_name }} <span class="badge badge-{{ cr.status }}">{{ cr.status | upper }}</span></h3>
+    {% if cr.schema_drift %}
+    <h4 style="margin-top: 0.75rem; font-size: 0.9rem;">Schema Drift</h4>
+    <table class="sample-table">
+      <thead>
+        <tr><th>Column</th><th>Change</th><th>Expected</th><th>Actual</th></tr>
+      </thead>
+      <tbody>
+        {% for d in cr.schema_drift %}
+        <tr>
+          <td>{{ d.column }}</td>
+          <td class="drift-{{ d.change_type }}">{{ d.change_type }}</td>
+          <td>{{ d.expected }}</td>
+          <td>{{ d.actual }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    {% if cr.violations %}
+    <h4 style="margin-top: 0.75rem; font-size: 0.9rem;">Violations</h4>
+    {% for v in cr.violations %}
+    <div class="violation">
+      <strong>{{ v.rule }}</strong>: {{ v.message }} <em>({{ v.severity }})</em>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="footer">
+    Generated by Assay {{ version }}
+  </div>
+</div>
+</body>
+</html>

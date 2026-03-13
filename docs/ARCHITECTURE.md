@@ -1,6 +1,6 @@
-# Apache Assay - Technical Architecture
+# Apache Provero - Technical Architecture
 
-> **assay** /ˈæseɪ/ — the testing of a substance to determine its quality or purity.
+> **provero** /ˈæseɪ/ — the testing of a substance to determine its quality or purity.
 
 A vendor-neutral, declarative data quality engine with built-in anomaly detection.
 Works standalone, as an Airflow provider, or with any orchestrator.
@@ -13,7 +13,7 @@ Successor espiritual do Apache Griffin, aprendendo com seus erros.
 1. **Simple by default, powerful when needed.** Um check de qualidade em 3 linhas de YAML.
    GX precisa de 50+ linhas para o mesmo resultado.
 2. **Portable rules.** Regras definidas uma vez, executadas em qualquer lugar.
-   Introduce o Assay Quality Language (AQL), um padrão aberto.
+   Introduce o Provero Quality Language (AQL), um padrão aberto.
 3. **Anomaly detection built-in.** Não precisa de SaaS de $100k/ano.
    Detecção estatística roda localmente, sem dependência externa.
 4. **Orchestrator-agnostic.** Funciona como CLI, como lib Python, como Airflow
@@ -21,7 +21,7 @@ Successor espiritual do Apache Griffin, aprendendo com seus erros.
 5. **Streaming + Batch.** Primeiro framework open source que trata streaming
    como cidadão de primeira classe.
 6. **Data contracts first.** Produtores declaram, consumidores verificam,
-   Assay enforce.
+   Provero enforce.
 
 ---
 
@@ -31,14 +31,14 @@ Successor espiritual do Apache Griffin, aprendendo com seus erros.
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                           USER LAYER                                    │
 │                                                                         │
-│  assay.yaml          Python SDK          CLI            REST API        │
-│  (declarative)       (programmatic)      (assay-ctl)    (server mode)   │
+│  provero.yaml          Python SDK          CLI            REST API        │
+│  (declarative)       (programmatic)      (provero-ctl)    (server mode)   │
 │                                                                         │
 │  ┌──────────────┐   ┌──────────────┐   ┌────────────┐  ┌────────────┐  │
-│  │ source: pg   │   │ @check       │   │ assay run  │  │ POST /scan │  │
-│  │ checks:      │   │ @contract    │   │ assay scan │  │ GET /report│  │
-│  │  - not_null  │   │ @monitor     │   │ assay watch│  │ GET /health│  │
-│  │  - unique    │   │              │   │ assay diff  │  │            │  │
+│  │ source: pg   │   │ @check       │   │ provero run  │  │ POST /scan │  │
+│  │ checks:      │   │ @contract    │   │ provero scan │  │ GET /report│  │
+│  │  - not_null  │   │ @monitor     │   │ provero watch│  │ GET /health│  │
+│  │  - unique    │   │              │   │ provero diff  │  │            │  │
 │  └──────────────┘   └──────────────┘   └────────────┘  └────────────┘  │
 └──────────┬──────────────────┬──────────────────┬──────────────┬─────────┘
            │                  │                  │              │
@@ -106,7 +106,7 @@ Successor espiritual do Apache Griffin, aprendendo com seus erros.
 
 ---
 
-## Assay Quality Language (AQL)
+## Provero Quality Language (AQL)
 
 O diferencial principal. Um padrão aberto para definir regras de qualidade
 que funciona em qualquer ferramenta, como SQL funciona em qualquer banco.
@@ -114,7 +114,7 @@ que funciona em qualquer ferramenta, como SQL funciona em qualquer banco.
 ### Sintaxe básica
 
 ```yaml
-# assay.yaml - O mais simples possível
+# provero.yaml - O mais simples possível
 source:
   type: postgres
   connection: ${POSTGRES_URI}    # variavel de ambiente ou Airflow connection
@@ -146,7 +146,7 @@ checks:
 ### Exemplo completo com todas as features
 
 ```yaml
-# assay.yaml - Exemplo avancado
+# provero.yaml - Exemplo avancado
 version: "1.0"
 
 # Fontes de dados reutilizaveis
@@ -366,7 +366,7 @@ reporting:
 ### AQL como padrão aberto
 
 ```
-AQL (Assay Quality Language) Specification:
+AQL (Provero Quality Language) Specification:
 
 Goal: become the "SQL of data quality"
      Define once, run anywhere.
@@ -407,7 +407,7 @@ Other tools can implement AQL:
 Transforma AQL (YAML) em planos de execucao otimizados.
 
 ```
-assay.yaml
+provero.yaml
     │
     ▼
 ┌──────────────────────────────┐
@@ -586,7 +586,7 @@ Armazenamento:
   - Ambos (git como source of truth, server como cache)
 
 Workflow:
-  1. Produtor define contrato em assay.yaml
+  1. Produtor define contrato em provero.yaml
   2. CI verifica que dados satisfazem o contrato
   3. Consumidor declara dependencia no contrato
   4. Se produtor quebra o contrato, consumidor e alertado
@@ -640,9 +640,9 @@ class Connector(Protocol):
 # Streaming: Kafka, Kinesis, Pulsar
 
 # Conectores via plugins (pacotes separados):
-# assay-connector-mongodb
-# assay-connector-elasticsearch
-# assay-connector-dynamodb
+# provero-connector-mongodb
+# provero-connector-elasticsearch
+# provero-connector-dynamodb
 # etc.
 ```
 
@@ -650,13 +650,13 @@ class Connector(Protocol):
 
 ## Airflow Integration
 
-### Airflow Provider Package: apache-airflow-providers-assay
+### Airflow Provider Package: apache-airflow-providers-provero
 
 ```python
 # ── Operator: executa checks inline na DAG ──
 
 from airflow.decorators import dag, task
-from assay.airflow import AssayCheckOperator, AssaySensor
+from provero.airflow import ProveroCheckOperator, ProveroSensor
 
 @dag(schedule="@daily")
 def etl_pipeline():
@@ -665,10 +665,10 @@ def etl_pipeline():
     transform = ...
 
     # Quality gate entre transform e load
-    quality_check = AssayCheckOperator(
+    quality_check = ProveroCheckOperator(
         task_id="quality_check",
-        # Opcao 1: referencia a arquivo assay.yaml
-        assay_file="checks/transactions.yaml",
+        # Opcao 1: referencia a arquivo provero.yaml
+        provero_file="checks/transactions.yaml",
         # Opcao 2: inline checks
         # source={"type": "postgres", "conn_id": "warehouse"},
         # table="staging.transactions",
@@ -686,7 +686,7 @@ def etl_pipeline():
 
 # ── Sensor: espera dados atingirem qualidade minima ──
 
-    wait_for_quality = AssaySensor(
+    wait_for_quality = ProveroSensor(
         task_id="wait_for_quality",
         source={"type": "postgres", "conn_id": "warehouse"},
         table="raw.events",
@@ -701,7 +701,7 @@ def etl_pipeline():
 
 # ── Decorator: mais Pythonico ──
 
-from assay.airflow import assay_check
+from provero.airflow import provero_check
 
 @dag(schedule="@daily")
 def modern_pipeline():
@@ -710,7 +710,7 @@ def modern_pipeline():
     def transform():
         return process_data()
 
-    @assay_check(
+    @provero_check(
         source="warehouse",
         table="staging.output",
         checks=["not_null:id", "unique:id", "freshness:updated_at<1h"],
@@ -723,27 +723,27 @@ def modern_pipeline():
     transform() >> load()
 
 
-# ── DAG auto-generated from assay.yaml ──
-# Se assay.yaml tem schedule definido, gera DAG automaticamente
+# ── DAG auto-generated from provero.yaml ──
+# Se provero.yaml tem schedule definido, gera DAG automaticamente
 
-# Arquivo: dags/assay_auto.py (unica linha)
-from assay.airflow import generate_dags_from_directory
+# Arquivo: dags/provero_auto.py (unica linha)
+from provero.airflow import generate_dags_from_directory
 generate_dags_from_directory("checks/")
-# Isso gera um DAG para cada suite com schedule em assay.yaml
+# Isso gera um DAG para cada suite com schedule em provero.yaml
 ```
 
 ### Flyte Integration (plugin separado)
 
 ```python
-# assay-flyte package
+# provero-flyte package
 from flytekit import task, workflow
-from assay.flyte import assay_check
+from provero.flyte import provero_check
 
 @task
 def train_model(data):
     ...
 
-@assay_check(
+@provero_check(
     source="s3://training-data/",
     checks=["row_count:min=10000", "not_null:label", "completeness:features>0.99"],
 )
@@ -801,7 +801,7 @@ def ml_pipeline():
 -- Minimal schema. SQLite for local, PostgreSQL for server mode.
 
 -- Sources registradas
-CREATE TABLE assay_source (
+CREATE TABLE provero_source (
     id          TEXT PRIMARY KEY,    -- "warehouse", "lake", etc.
     type        TEXT NOT NULL,       -- "postgres", "snowflake", etc.
     config      TEXT NOT NULL,       -- JSON (connection params, no secrets)
@@ -810,10 +810,10 @@ CREATE TABLE assay_source (
 );
 
 -- Suites de checks
-CREATE TABLE assay_suite (
+CREATE TABLE provero_suite (
     id          TEXT PRIMARY KEY,
     name        TEXT UNIQUE NOT NULL,
-    source_id   TEXT REFERENCES assay_source(id),
+    source_id   TEXT REFERENCES provero_source(id),
     definition  TEXT NOT NULL,       -- JSON (compiled AQL)
     tags        TEXT,                -- JSON array
     created_at  TEXT NOT NULL,
@@ -821,9 +821,9 @@ CREATE TABLE assay_suite (
 );
 
 -- Execucoes de suites
-CREATE TABLE assay_run (
+CREATE TABLE provero_run (
     id          TEXT PRIMARY KEY,
-    suite_id    TEXT REFERENCES assay_suite(id),
+    suite_id    TEXT REFERENCES provero_suite(id),
     status      TEXT NOT NULL,       -- running, passed, failed, error
     trigger     TEXT NOT NULL,       -- schedule, manual, api, airflow
 
@@ -841,9 +841,9 @@ CREATE TABLE assay_run (
 );
 
 -- Resultados individuais de cada check
-CREATE TABLE assay_check_result (
+CREATE TABLE provero_check_result (
     id              TEXT PRIMARY KEY,
-    run_id          TEXT REFERENCES assay_run(id),
+    run_id          TEXT REFERENCES provero_run(id),
     check_name      TEXT NOT NULL,
     check_type      TEXT NOT NULL,
 
@@ -869,9 +869,9 @@ CREATE TABLE assay_check_result (
 );
 
 -- Metricas historicas (para anomaly detection)
-CREATE TABLE assay_metric (
+CREATE TABLE provero_metric (
     id          TEXT PRIMARY KEY,
-    suite_id    TEXT REFERENCES assay_suite(id),
+    suite_id    TEXT REFERENCES provero_suite(id),
     check_name  TEXT NOT NULL,
     metric_name TEXT NOT NULL,        -- "row_count", "null_rate", "mean", etc.
     value       REAL NOT NULL,
@@ -881,12 +881,12 @@ CREATE TABLE assay_metric (
 );
 
 -- Data contracts
-CREATE TABLE assay_contract (
+CREATE TABLE provero_contract (
     id          TEXT PRIMARY KEY,
     name        TEXT UNIQUE NOT NULL,
     version     TEXT NOT NULL,        -- semver
     owner       TEXT,
-    source_id   TEXT REFERENCES assay_source(id),
+    source_id   TEXT REFERENCES provero_source(id),
     definition  TEXT NOT NULL,        -- JSON (schema + SLAs + checks)
     status      TEXT DEFAULT 'active', -- active, deprecated, violated
     created_at  TEXT NOT NULL,
@@ -894,9 +894,9 @@ CREATE TABLE assay_contract (
 );
 
 -- Drift events
-CREATE TABLE assay_drift_event (
+CREATE TABLE provero_drift_event (
     id          TEXT PRIMARY KEY,
-    suite_id    TEXT REFERENCES assay_suite(id),
+    suite_id    TEXT REFERENCES provero_suite(id),
     column_name TEXT,
     drift_type  TEXT NOT NULL,        -- data, schema, volume
     method      TEXT NOT NULL,        -- psi, wasserstein, ks_test
@@ -913,20 +913,20 @@ CREATE TABLE assay_drift_event (
 
 ```bash
 # ── Init ──
-assay init                          # cria assay.yaml template
-assay init --from-source postgres://...  # gera checks automaticamente
+provero init                          # cria provero.yaml template
+provero init --from-source postgres://...  # gera checks automaticamente
                                          # baseado no profile dos dados
 
 # ── Run checks ──
-assay run                           # executa todos os checks em assay.yaml
-assay run --suite transactions      # executa suite especifica
-assay run --tag critical            # executa checks com tag
-assay run --source warehouse        # executa checks de uma source
+provero run                           # executa todos os checks em provero.yaml
+provero run --suite transactions      # executa suite especifica
+provero run --tag critical            # executa checks com tag
+provero run --source warehouse        # executa checks de uma source
 
 # ── Output ──
-assay run --format json             # resultado em JSON
-assay run --format table            # resultado em tabela (default)
-assay run --report html             # gera report HTML
+provero run --format json             # resultado em JSON
+provero run --format table            # resultado em tabela (default)
+provero run --report html             # gera report HTML
 
 # Exemplo de output (table format):
 # ┌─────────────────────┬──────────┬──────────┬───────────┬──────────┐
@@ -948,31 +948,31 @@ assay run --report html             # gera report HTML
 # Query to inspect: SELECT * FROM orders WHERE amount < 0.01
 
 # ── Profile ──
-assay profile postgres://...        # profile estatistico de uma source
-assay profile --table orders        # profile de uma tabela
-assay profile --suggest             # sugere checks baseado no profile
+provero profile postgres://...        # profile estatistico de uma source
+provero profile --table orders        # profile de uma tabela
+provero profile --suggest             # sugere checks baseado no profile
 
 # ── Contracts ──
-assay contract validate             # valida dados contra contrato
-assay contract publish              # publica contrato no registry
-assay contract diff v2.0 v2.1       # diff entre versoes do contrato
-assay contract breaking-changes     # lista breaking changes
+provero contract validate             # valida dados contra contrato
+provero contract publish              # publica contrato no registry
+provero contract diff v2.0 v2.1       # diff entre versoes do contrato
+provero contract breaking-changes     # lista breaking changes
 
 # ── Monitor (continuous) ──
-assay watch                         # roda checks continuamente
-assay watch --interval 5m           # a cada 5 minutos
-assay watch --stream                # modo streaming (Kafka, etc.)
+provero watch                         # roda checks continuamente
+provero watch --interval 5m           # a cada 5 minutos
+provero watch --stream                # modo streaming (Kafka, etc.)
 
 # ── Server mode ──
-assay server                        # inicia API server (FastAPI)
-assay server --port 8080
+provero server                        # inicia API server (FastAPI)
+provero server --port 8080
 
 # ── Utilities ──
-assay diff source_a source_b        # compara duas fontes de dados
-assay lineage                       # mostra lineage (OpenLineage)
-assay export openlineage            # exporta resultados como OpenLineage events
-assay export great-expectations     # exporta regras como GX expectations
-assay export soda                   # exporta regras como SodaCL
+provero diff source_a source_b        # compara duas fontes de dados
+provero lineage                       # mostra lineage (OpenLineage)
+provero export openlineage            # exporta resultados como OpenLineage events
+provero export great-expectations     # exporta regras como GX expectations
+provero export soda                   # exporta regras como SodaCL
 ```
 
 ---
@@ -1000,14 +1000,14 @@ Docs:            Sphinx + MyST (Markdown)
 CI:              GitHub Actions
 
 Packaging:
-  assay-core              # engine + CLI + basic connectors (Postgres, DuckDB, files)
-  assay-airflow           # Airflow provider
-  assay-flyte             # Flyte plugin
-  assay-snowflake         # Snowflake connector
-  assay-bigquery          # BigQuery connector
-  assay-redshift          # Redshift connector
-  assay-kafka             # Kafka streaming connector
-  assay-server            # REST API server mode
+  provero-core              # engine + CLI + basic connectors (Postgres, DuckDB, files)
+  provero-airflow           # Airflow provider
+  provero-flyte             # Flyte plugin
+  provero-snowflake         # Snowflake connector
+  provero-bigquery          # BigQuery connector
+  provero-redshift          # Redshift connector
+  provero-kafka             # Kafka streaming connector
+  provero-server            # REST API server mode
 ```
 
 ---
@@ -1015,9 +1015,9 @@ Packaging:
 ## Package Structure
 
 ```
-apache-assay/
-├── assay-core/
-│   └── src/assay/
+apache-provero/
+├── provero-core/
+│   └── src/provero/
 │       ├── __init__.py
 │       ├── core/
 │       │   ├── compiler.py          # AQL YAML → execution plan
@@ -1097,34 +1097,34 @@ apache-assay/
 │           │   └── export.py
 │           └── output.py            # Rich terminal output
 │
-├── assay-airflow/
-│   └── src/assay/airflow/
-│       ├── operators.py             # AssayCheckOperator
-│       ├── sensors.py               # AssaySensor, AssayDriftSensor
-│       ├── hooks.py                 # AssayHook (API client)
-│       ├── decorators.py            # @assay_check
-│       ├── dag_generator.py         # Auto-gen DAGs from assay.yaml
+├── provero-airflow/
+│   └── src/provero/airflow/
+│       ├── operators.py             # ProveroCheckOperator
+│       ├── sensors.py               # ProveroSensor, ProveroDriftSensor
+│       ├── hooks.py                 # ProveroHook (API client)
+│       ├── decorators.py            # @provero_check
+│       ├── dag_generator.py         # Auto-gen DAGs from provero.yaml
 │       └── provider.yaml
 │
-├── assay-flyte/
-│   └── src/assay/flyte/
+├── provero-flyte/
+│   └── src/provero/flyte/
 │       ├── plugin.py
 │       └── decorators.py
 │
-├── assay-snowflake/
-│   └── src/assay/connectors/
+├── provero-snowflake/
+│   └── src/provero/connectors/
 │       └── snowflake.py
 │
-├── assay-bigquery/
-│   └── src/assay/connectors/
+├── provero-bigquery/
+│   └── src/provero/connectors/
 │       └── bigquery.py
 │
-├── assay-kafka/
-│   └── src/assay/connectors/
+├── provero-kafka/
+│   └── src/provero/connectors/
 │       └── kafka.py
 │
-├── assay-server/
-│   └── (installs assay-core + API dependencies)
+├── provero-server/
+│   └── (installs provero-core + API dependencies)
 │
 ├── docs/
 │   ├── getting-started.md
@@ -1134,7 +1134,7 @@ apache-assay/
 │   └── migration-from-gx.md        # Guia para migrar do Great Expectations
 │
 ├── examples/
-│   ├── quickstart/                  # 3-line assay.yaml
+│   ├── quickstart/                  # 3-line provero.yaml
 │   ├── ecommerce/                   # Full e-commerce pipeline
 │   ├── iot-sensors/                 # IoT/industrial (caso Bosch)
 │   ├── streaming/                   # Kafka streaming checks
@@ -1142,7 +1142,7 @@ apache-assay/
 │
 ├── aql-spec/                        # AQL spec (separado, para adocao por outros)
 │   ├── spec.md
-│   ├── schema.json                  # JSON Schema for assay.yaml
+│   ├── schema.json                  # JSON Schema for provero.yaml
 │   └── examples/
 │
 ├── pyproject.toml                   # uv workspace root
@@ -1151,11 +1151,11 @@ apache-assay/
 
 ---
 
-## What Makes Assay Different
+## What Makes Provero Different
 
 ```
 ┌────────────────────┬──────────┬───────────┬─────────┬──────────┐
-│                    │  Assay   │  Great Ex │  Soda   │  Pandera │
+│                    │  Provero   │  Great Ex │  Soda   │  Pandera │
 ├────────────────────┼──────────┼───────────┼─────────┼──────────┤
 │ Lines for 1 check  │ 3        │ 50+       │ 5       │ 10       │
 │ Anomaly detection  │ Built-in │ No        │ Paid    │ No       │
@@ -1182,15 +1182,15 @@ What ships for the proposal demo:
 
 ```
 Must have (MVP):
-  ✓ assay.yaml parsing (AQL core subset)
+  ✓ provero.yaml parsing (AQL core subset)
   ✓ Check engine with 8 core check types:
     - not_null, unique, accepted_values, range
     - freshness, row_count, custom_sql, completeness
   ✓ 3 connectors: PostgreSQL, DuckDB (files), Pandas DataFrame
-  ✓ CLI: assay init, assay run, assay profile
+  ✓ CLI: provero init, provero run, provero profile
   ✓ Result store: SQLite
   ✓ Table + JSON output
-  ✓ Airflow provider: AssayCheckOperator (basic)
+  ✓ Airflow provider: ProveroCheckOperator (basic)
   ✓ One complete example: e-commerce pipeline
 
 Phase 2 (post-acceptance):
@@ -1198,7 +1198,7 @@ Phase 2 (post-acceptance):
   - HTML reports
   - Data contracts
   - Snowflake, BigQuery connectors
-  - assay profile --suggest
+  - provero profile --suggest
   - SQL batching optimizer
 
 Phase 3:
@@ -1244,7 +1244,7 @@ Lessons from Griffin's failure, built into the project DNA:
 
 5. User community
    - Discord/Slack for real-time help
-   - dev@assay.apache.org for decisions (Apache Way)
+   - dev@provero.apache.org for decisions (Apache Way)
    - Blog post for every release
 
 6. Meritocratic path

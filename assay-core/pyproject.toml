@@ -1,0 +1,123 @@
+[project]
+name = "provero"
+version = "0.0.1"
+description = "A vendor-neutral, declarative data quality engine"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+authors = [
+    { name = "Provero Contributors" },
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Framework :: Apache Airflow",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Database",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+]
+keywords = ["data-quality", "data-contracts", "anomaly-detection", "airflow", "testing"]
+
+dependencies = [
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+    "sqlalchemy>=2.0",
+    "duckdb>=1.0",
+    "rich>=13.0",
+    "typer>=0.12",
+    "jsonschema>=4.20",
+    "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+dataframe = ["pandas>=2.0"]
+polars = ["polars>=0.20"]
+postgres = ["psycopg[binary]>=3.1"]
+snowflake = ["snowflake-sqlalchemy>=1.6"]
+bigquery = ["sqlalchemy-bigquery>=1.11"]
+redshift = ["redshift-connector>=2.1"]
+kafka = ["confluent-kafka>=2.3"]
+anomaly = ["scipy>=1.11", "numpy>=1.26"]
+prophet = ["prophet>=1.1"]
+server = ["fastapi>=0.110", "uvicorn>=0.29"]
+all = [
+    "provero[dataframe,postgres,snowflake,bigquery,anomaly,server]",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "pytest-asyncio>=0.23",
+    "hypothesis>=6.100",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "pre-commit>=3.7",
+]
+
+[project.scripts]
+provero = "provero.cli.main:app"
+
+# Plugin entry points: third-party packages use these groups
+# to register connectors, checks, and reporters.
+# Built-in connectors use lazy imports (not entry_points) for speed,
+# but the groups below are the public API for external plugins.
+#
+# Example for a third-party connector (in their pyproject.toml):
+#   [project.entry-points."provero.connectors"]
+#   mysql = "provero_mysql:MySQLConnector"
+#
+# Example for a third-party check:
+#   [project.entry-points."provero.checks"]
+#   pii_detection = "provero_pii:check_pii"
+
+# [project.entry-points."provero.connectors"]
+# Reserved for external plugins. Built-ins use lazy imports.
+
+# [project.entry-points."provero.checks"]
+# Reserved for external plugins. Built-ins use @register_check.
+
+[project.urls]
+Homepage = "https://github.com/andreahlert/provero"
+Repository = "https://github.com/andreahlert/provero"
+Issues = "https://github.com/andreahlert/provero/issues"
+
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/provero"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/provero/schema.json" = "provero/schema.json"
+"src/provero/reporting/templates/report.html" = "provero/reporting/templates/report.html"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",     # pycodestyle
+    "F",           # pyflakes
+    "I",           # isort
+    "UP",          # pyupgrade
+    "B",           # bugbear
+    "SIM",         # simplify
+    "RUF",         # ruff-specific
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true

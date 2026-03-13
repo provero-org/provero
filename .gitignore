@@ -37,3 +37,5 @@ Thumbs.db
 
 # UV
 uv.lock
+.assay/
+.provero/

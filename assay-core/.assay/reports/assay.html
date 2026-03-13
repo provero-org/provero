@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assay Report: assay</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #1a1a2e; line-height: 1.6; padding: 2rem; }
+  .container { max-width: 960px; margin: 0 auto; }
+  .header { background: #fff; border-radius: 8px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+  .header h1 { font-size: 1.5rem; font-weight: 600; }
+  .badge { padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; }
+  .badge-pass { background: #d4edda; color: #155724; }
+  .badge-fail { background: #f8d7da; color: #721c24; }
+  .badge-warn { background: #fff3cd; color: #856404; }
+  .timestamp { color: #6c757d; font-size: 0.85rem; }
+  .summary { background: #fff; border-radius: 8px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .summary h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+  .stats { display: flex; gap: 2rem; margin-bottom: 1rem; }
+  .stat { text-align: center; }
+  .stat-value { font-size: 1.8rem; font-weight: 700; }
+  .stat-label { font-size: 0.8rem; color: #6c757d; text-transform: uppercase; }
+  .stat-pass .stat-value { color: #28a745; }
+  .stat-fail .stat-value { color: #dc3545; }
+  .stat-warn .stat-value { color: #ffc107; }
+  .score-bar { background: #e9ecef; border-radius: 4px; height: 24px; margin-top: 0.5rem; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; color: #fff; min-width: 2rem; transition: width 0.5s; }
+  .score-high { background: #28a745; }
+  .score-med { background: #ffc107; }
+  .score-low { background: #dc3545; }
+  .checks { background: #fff; border-radius: 8px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .checks h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 2px solid #dee2e6; font-size: 0.8rem; text-transform: uppercase; color: #6c757d; }
+  td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; }
+  tr:hover { background: #f8f9fa; }
+  .status-pass { color: #28a745; font-weight: 600; }
+  .status-fail { color: #dc3545; font-weight: 600; }
+  .status-warn { color: #ffc107; font-weight: 600; }
+  .status-error { color: #dc3545; font-weight: 600; }
+  .status-skip { color: #6c757d; }
+  .failing-section { background: #fff; border-radius: 8px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #dc3545; }
+  .failing-section h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #dc3545; }
+  .failing-check { margin-bottom: 1.5rem; }
+  .failing-check h3 { font-size: 0.95rem; margin-bottom: 0.5rem; }
+  .query { background: #f8f9fa; padding: 0.75rem; border-radius: 4px; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.8rem; overflow-x: auto; margin-bottom: 0.5rem; }
+  .sample-table { margin-top: 0.5rem; }
+  .sample-table td, .sample-table th { font-size: 0.8rem; padding: 0.3rem 0.5rem; }
+  .contracts { background: #fff; border-radius: 8px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #6f42c1; }
+  .contracts h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #6f42c1; }
+  .violation { padding: 0.5rem 0; border-bottom: 1px solid #f0f0f0; }
+  .violation:last-child { border-bottom: none; }
+  .drift-added { color: #28a745; }
+  .drift-removed { color: #dc3545; }
+  .drift-changed { color: #ffc107; }
+  .footer { text-align: center; color: #6c757d; font-size: 0.8rem; padding: 1rem; }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <h1>assay</h1>
+      <span class="timestamp">2026-03-13 09:10:19 UTC</span>
+    </div>
+    <span class="badge badge-pass">PASS</span>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary">
+    <h2>Summary</h2>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value">7</div>
+        <div class="stat-label">Total</div>
+      </div>
+      <div class="stat stat-pass">
+        <div class="stat-value">7</div>
+        <div class="stat-label">Passed</div>
+      </div>
+      <div class="stat stat-fail">
+        <div class="stat-value">0</div>
+        <div class="stat-label">Failed</div>
+      </div>
+      <div class="stat stat-warn">
+        <div class="stat-value">0</div>
+        <div class="stat-label">Warned</div>
+      </div>
+      
+    </div>
+    <div>
+      <strong>Quality Score: 100.0/100</strong>
+      <div class="score-bar">
+        <div class="score-fill score-high" style="width: 100.0%">
+          100.0
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Check Results -->
+  <div class="checks">
+    <h2>Check Results</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Check</th>
+          <th>Column</th>
+          <th>Status</th>
+          <th>Observed</th>
+          <th>Expected</th>
+          <th>Severity</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td>not_null</td>
+          <td>order_id</td>
+          <td class="status-pass">PASS</td>
+          <td>0 nulls</td>
+          <td>0 nulls</td>
+          <td>critical</td>
+        </tr>
+        
+        <tr>
+          <td>not_null</td>
+          <td>customer_id</td>
+          <td class="status-pass">PASS</td>
+          <td>0 nulls</td>
+          <td>0 nulls</td>
+          <td>critical</td>
+        </tr>
+        
+        <tr>
+          <td>not_null</td>
+          <td>amount</td>
+          <td class="status-pass">PASS</td>
+          <td>0 nulls</td>
+          <td>0 nulls</td>
+          <td>critical</td>
+        </tr>
+        
+        <tr>
+          <td>unique</td>
+          <td>order_id</td>
+          <td class="status-pass">PASS</td>
+          <td>0 duplicates</td>
+          <td>0 duplicates</td>
+          <td>critical</td>
+        </tr>
+        
+        <tr>
+          <td>accepted_values</td>
+          <td>status</td>
+          <td class="status-pass">PASS</td>
+          <td>0 invalid values</td>
+          <td>only [&#39;pending&#39;, &#39;shipped&#39;, &#39;delivered&#39;, &#39;cancelled&#39;]</td>
+          <td>critical</td>
+        </tr>
+        
+        <tr>
+          <td>range</td>
+          <td>amount</td>
+          <td class="status-pass">PASS</td>
+          <td>min=45.0, max=999.99</td>
+          <td>min=0, max=100000</td>
+          <td>critical</td>
+        </tr>
+        
+        <tr>
+          <td>row_count</td>
+          <td>-</td>
+          <td class="status-pass">PASS</td>
+          <td>5</td>
+          <td>&gt;= 1</td>
+          <td>critical</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Failing Rows -->
+  
+
+  <!-- Contract Violations -->
+  
+
+  <div class="footer">
+    Generated by Assay 0.1.0-dev
+  </div>
+</div>
+</body>
+</html>

@@ -49,6 +49,13 @@
     "schedule": {
       "type": "string",
       "description": "Cron schedule (standalone mode)"
+    },
+    "alerts": {
+      "type": "array",
+      "description": "Alert destinations for check failures",
+      "items": {
+        "$ref": "#/$defs/alert"
+      }
     }
   },
   "oneOf": [
@@ -309,9 +316,34 @@
         }
       }
     },
+    "alert": {
+      "type": "object",
+      "required": ["url"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["webhook"],
+          "default": "webhook"
+        },
+        "url": {
+          "type": "string",
+          "description": "Webhook URL or ${ENV_VAR} reference"
+        },
+        "trigger": {
+          "type": "string",
+          "enum": ["on_failure", "on_success", "always"],
+          "default": "on_failure"
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "HTTP headers (supports ${ENV_VAR} in values)"
+        }
+      }
+    },
     "contract": {
       "type": "object",
-      "required": ["name", "source"],
+      "required": ["name"],
       "properties": {
         "name": { "type": "string" },
         "owner": { "type": "string" },

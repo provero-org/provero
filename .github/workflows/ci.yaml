@@ -9,6 +9,9 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: assay-core
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
@@ -18,6 +21,9 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: assay-core
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
@@ -27,12 +33,64 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: uv sync --dev
-      - run: uv run pytest tests/ -v --cov=src/assay --cov-report=term-missing
+      - run: uv run pytest tests/ -v --cov=src/provero --cov-report=term-missing
 
   typecheck:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: assay-core
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
       - run: uv sync --dev
-      - run: uv run mypy src/assay/
+      - run: uv run mypy src/provero/
+
+  license-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: assay-core
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Apache license headers
+        run: |
+          missing=()
+          while IFS= read -r f; do
+            if ! head -5 "$f" | grep -q "Licensed to the Apache Software Foundation"; then
+              missing+=("$f")
+            fi
+          done < <(find src/provero -name "*.py" -type f)
+          if [ ${#missing[@]} -ne 0 ]; then
+            echo "Files missing Apache license header:"
+            printf '  %s\n' "${missing[@]}"
+            exit 1
+          fi
+          echo "All Python files have Apache license headers."
+
+  build-verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: assay-core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync --dev
+      - name: Build and verify wheel contents
+        run: |
+          uv build
+          whl=$(ls dist/*.whl | head -1)
+          python -c "
+          import zipfile, sys
+          with zipfile.ZipFile('$whl') as z:
+              names = z.namelist()
+              required = ['assay/schema.json', 'assay/reporting/templates/report.html']
+              for r in required:
+                  matches = [n for n in names if n.endswith(r)]
+                  if not matches:
+                      print(f'MISSING from wheel: {r}')
+                      sys.exit(1)
+                  print(f'OK: {matches[0]}')
+          print('Wheel contents verified.')
+          "

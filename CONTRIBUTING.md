@@ -1,12 +1,12 @@
-# Contributing to Assay
+# Contributing to Provero
 
-Thank you for your interest in contributing to Assay!
+Thank you for your interest in contributing to Provero!
 
 ## How to Contribute
 
 ### Reporting Issues
 
-Use [GitHub Issues](https://github.com/andreahlert/assay/issues) to report bugs or request features.
+Use [GitHub Issues](https://github.com/andreahlert/provero/issues) to report bugs or request features.
 
 ### Submitting Changes
 

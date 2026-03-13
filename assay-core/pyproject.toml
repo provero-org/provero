@@ -81,9 +81,9 @@ provero = "provero.cli.main:app"
 # Reserved for external plugins. Built-ins use @register_check.
 
 [project.urls]
-Homepage = "https://github.com/andreahlert/provero"
-Repository = "https://github.com/andreahlert/provero"
-Issues = "https://github.com/andreahlert/provero/issues"
+Homepage = "https://github.com/provero-org/provero"
+Repository = "https://github.com/provero-org/provero"
+Issues = "https://github.com/provero-org/provero/issues"
 
 [build-system]
 requires = ["hatchling>=1.21"]

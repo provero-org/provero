@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Provero!
 
 ### Reporting Issues
 
-Use [GitHub Issues](https://github.com/andreahlert/provero/issues) to report bugs or request features.
+Use [GitHub Issues](https://github.com/provero-org/provero/issues) to report bugs or request features.
 
 ### Submitting Changes
 

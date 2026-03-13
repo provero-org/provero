@@ -1,6 +1,6 @@
 github:
   description: "Provero - A vendor-neutral, declarative data quality engine with built-in anomaly detection"
-  homepage: https://github.com/andreahlert/provero
+  homepage: https://github.com/provero-org/provero
   labels:
     - data-quality
     - data-contracts

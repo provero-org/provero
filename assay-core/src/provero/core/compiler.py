@@ -102,7 +102,7 @@ def parse_check(raw: dict[str, Any] | str) -> CheckConfig:
         f"'not_null: column', "
         f"{{not_null: [col1, col2]}}, "
         f"{{range: {{column: col, min: 0, max: 100}}}}, "
-        f"or similar. See https://github.com/andreahlert/provero for syntax reference."
+        f"or similar. See https://github.com/provero-org/provero for syntax reference."
     )
     raise ValueError(msg)
 

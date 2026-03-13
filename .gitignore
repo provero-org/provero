@@ -35,7 +35,6 @@ Thumbs.db
 .env
 .env.local
 
-# UV
-uv.lock
+# Data directories
 .assay/
 .provero/

@@ -118,7 +118,11 @@ class TestExecuteBatch:
     def test_detects_failures(self, orders_connection):
         checks = [
             CheckConfig(check_type="unique", column="customer_id"),  # C001 is duplicated
-            CheckConfig(check_type="range", column="amount", params={"min": 0, "max": 1000}),  # -10 is out
+            CheckConfig(
+                check_type="range",
+                column="amount",
+                params={"min": 0, "max": 1000},
+            ),  # -10 is out
         ]
         plan = plan_batch("orders", checks)
         results = execute_batch(orders_connection, plan)

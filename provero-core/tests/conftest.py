@@ -138,7 +138,8 @@ def duckdb_file(tmp_path: Path) -> Path:
 def sample_config_file(tmp_path: Path) -> Path:
     """Minimal valid provero.yaml for testing."""
     config_path = tmp_path / "provero.yaml"
-    config_path.write_text(textwrap.dedent("""\
+    config_path.write_text(
+        textwrap.dedent("""\
         source:
           type: duckdb
           table: orders
@@ -148,7 +149,8 @@ def sample_config_file(tmp_path: Path) -> Path:
           - unique: order_id
           - row_count:
               min: 1
-    """))
+    """)
+    )
     return config_path
 
 
@@ -159,7 +161,8 @@ def duckdb_config_file(tmp_path: Path, duckdb_file: Path) -> dict:
     Returns dict with 'config_path' and 'db_path'.
     """
     config_path = tmp_path / "provero.yaml"
-    config_path.write_text(textwrap.dedent(f"""\
+    config_path.write_text(
+        textwrap.dedent(f"""\
         source:
           type: duckdb
           connection: "{duckdb_file}"
@@ -170,5 +173,6 @@ def duckdb_config_file(tmp_path: Path, duckdb_file: Path) -> dict:
           - unique: order_id
           - row_count:
               min: 1
-    """))
+    """)
+    )
     return {"config_path": config_path, "db_path": duckdb_file}

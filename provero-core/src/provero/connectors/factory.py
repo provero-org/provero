@@ -66,6 +66,7 @@ def _load_builtin(source_type: str) -> Any:
         return None
     module_path, class_name = _BUILTINS[source_type]
     import importlib
+
     mod = importlib.import_module(module_path)
     return getattr(mod, class_name)
 

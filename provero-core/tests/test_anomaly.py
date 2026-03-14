@@ -19,8 +19,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from provero.anomaly.detectors import detect_anomaly, detect_iqr, detect_mad, detect_zscore
 
 

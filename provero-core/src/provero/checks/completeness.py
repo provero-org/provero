@@ -35,11 +35,7 @@ def check_not_null(
     """Check that column(s) have no null values."""
     columns = check_config.columns or ([check_config.column] if check_config.column else [])
 
-    severity = (
-        Severity(check_config.severity)
-        if check_config.severity
-        else Severity.CRITICAL
-    )
+    severity = Severity(check_config.severity) if check_config.severity else Severity.CRITICAL
 
     qtable = quote_identifier(table)
     for col in columns:
@@ -86,26 +82,20 @@ def check_completeness(
     check_config: CheckConfig,
 ) -> CheckResult:
     """Check that a column meets a minimum completeness threshold."""
-    col = check_config.column
+    col = check_config.column or ""
     min_completeness = check_config.params.get("min", 0.95)
     qtable = quote_identifier(table)
     qcol = quote_identifier(col)
 
     result = connection.execute(
-        f"SELECT COUNT(*) as total, "
-        f"COUNT({qcol}) as non_null_count "
-        f"FROM {qtable}"
+        f"SELECT COUNT(*) as total, COUNT({qcol}) as non_null_count FROM {qtable}"
     )
     row = result[0]
     total = row["total"]
     non_null = row["non_null_count"]
     completeness = non_null / total if total > 0 else 0.0
 
-    severity = (
-        Severity(check_config.severity)
-        if check_config.severity
-        else Severity.CRITICAL
-    )
+    severity = Severity(check_config.severity) if check_config.severity else Severity.CRITICAL
 
     return CheckResult(
         check_name=f"completeness:{col}",

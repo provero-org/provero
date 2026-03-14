@@ -19,12 +19,12 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
-class Sensitivity(str, Enum):
+class Sensitivity(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"

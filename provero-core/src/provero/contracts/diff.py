@@ -32,33 +32,39 @@ def diff_contracts(old: ContractConfig, new: ContractConfig) -> list[ContractCha
 
     # Compare top-level fields
     if old.owner != new.owner:
-        changes.append(ContractChange(
-            field="owner",
-            change_type="changed",
-            old_value=old.owner,
-            new_value=new.owner,
-            is_breaking=False,
-        ))
+        changes.append(
+            ContractChange(
+                field="owner",
+                change_type="changed",
+                old_value=old.owner,
+                new_value=new.owner,
+                is_breaking=False,
+            )
+        )
 
     if old.table != new.table:
-        changes.append(ContractChange(
-            field="table",
-            change_type="changed",
-            old_value=old.table,
-            new_value=new.table,
-            is_breaking=True,
-        ))
+        changes.append(
+            ContractChange(
+                field="table",
+                change_type="changed",
+                old_value=old.table,
+                new_value=new.table,
+                is_breaking=True,
+            )
+        )
 
     if old.on_violation != new.on_violation:
         from provero.contracts.models import ViolationAction
 
-        changes.append(ContractChange(
-            field="on_violation",
-            change_type="changed",
-            old_value=old.on_violation.value,
-            new_value=new.on_violation.value,
-            is_breaking=new.on_violation == ViolationAction.BLOCK,
-        ))
+        changes.append(
+            ContractChange(
+                field="on_violation",
+                change_type="changed",
+                old_value=old.on_violation.value,
+                new_value=new.on_violation.value,
+                is_breaking=new.on_violation == ViolationAction.BLOCK,
+            )
+        )
 
     # Compare schema columns
     old_cols = {c.name: c for c in old.schema_def.columns}
@@ -66,21 +72,25 @@ def diff_contracts(old: ContractConfig, new: ContractConfig) -> list[ContractCha
 
     for name in old_cols:
         if name not in new_cols:
-            changes.append(ContractChange(
-                field=f"schema.columns.{name}",
-                change_type="removed",
-                old_value=old_cols[name].type,
-                is_breaking=True,
-            ))
+            changes.append(
+                ContractChange(
+                    field=f"schema.columns.{name}",
+                    change_type="removed",
+                    old_value=old_cols[name].type,
+                    is_breaking=True,
+                )
+            )
 
     for name in new_cols:
         if name not in old_cols:
-            changes.append(ContractChange(
-                field=f"schema.columns.{name}",
-                change_type="added",
-                new_value=new_cols[name].type,
-                is_breaking=False,
-            ))
+            changes.append(
+                ContractChange(
+                    field=f"schema.columns.{name}",
+                    change_type="added",
+                    new_value=new_cols[name].type,
+                    is_breaking=False,
+                )
+            )
 
     for name in old_cols:
         if name in new_cols:
@@ -88,13 +98,15 @@ def diff_contracts(old: ContractConfig, new: ContractConfig) -> list[ContractCha
             new_col = new_cols[name]
 
             if old_col.type != new_col.type:
-                changes.append(ContractChange(
-                    field=f"schema.columns.{name}.type",
-                    change_type="changed",
-                    old_value=old_col.type,
-                    new_value=new_col.type,
-                    is_breaking=True,
-                ))
+                changes.append(
+                    ContractChange(
+                        field=f"schema.columns.{name}.type",
+                        change_type="changed",
+                        old_value=old_col.type,
+                        new_value=new_col.type,
+                        is_breaking=True,
+                    )
+                )
 
             old_checks = old_col.checks
             new_checks = new_col.checks
@@ -104,48 +116,70 @@ def diff_contracts(old: ContractConfig, new: ContractConfig) -> list[ContractCha
 
             for i, check in enumerate(old_checks):
                 if old_strs[i] not in new_strs:
-                    changes.append(ContractChange(
-                        field=f"schema.columns.{name}.checks",
-                        change_type="removed",
-                        old_value=str(check),
-                        is_breaking=False,
-                    ))
+                    changes.append(
+                        ContractChange(
+                            field=f"schema.columns.{name}.checks",
+                            change_type="removed",
+                            old_value=str(check),
+                            is_breaking=False,
+                        )
+                    )
 
             for i, check in enumerate(new_checks):
                 if new_strs[i] not in old_strs:
-                    changes.append(ContractChange(
-                        field=f"schema.columns.{name}.checks",
-                        change_type="added",
-                        new_value=str(check),
-                        is_breaking=True,
-                    ))
+                    changes.append(
+                        ContractChange(
+                            field=f"schema.columns.{name}.checks",
+                            change_type="added",
+                            new_value=str(check),
+                            is_breaking=True,
+                        )
+                    )
 
     # Compare SLA
     if old.sla.freshness != new.sla.freshness:
-        changes.append(ContractChange(
-            field="sla.freshness",
-            change_type="changed" if old.sla.freshness and new.sla.freshness else ("added" if new.sla.freshness else "removed"),
-            old_value=old.sla.freshness,
-            new_value=new.sla.freshness,
-            is_breaking=bool(new.sla.freshness),
-        ))
+        changes.append(
+            ContractChange(
+                field="sla.freshness",
+                change_type=(
+                    "changed"
+                    if old.sla.freshness and new.sla.freshness
+                    else ("added" if new.sla.freshness else "removed")
+                ),
+                old_value=old.sla.freshness,
+                new_value=new.sla.freshness,
+                is_breaking=bool(new.sla.freshness),
+            )
+        )
 
     if old.sla.completeness != new.sla.completeness:
-        changes.append(ContractChange(
-            field="sla.completeness",
-            change_type="changed" if old.sla.completeness and new.sla.completeness else ("added" if new.sla.completeness else "removed"),
-            old_value=old.sla.completeness,
-            new_value=new.sla.completeness,
-            is_breaking=bool(new.sla.completeness),
-        ))
+        changes.append(
+            ContractChange(
+                field="sla.completeness",
+                change_type=(
+                    "changed"
+                    if old.sla.completeness and new.sla.completeness
+                    else ("added" if new.sla.completeness else "removed")
+                ),
+                old_value=old.sla.completeness,
+                new_value=new.sla.completeness,
+                is_breaking=bool(new.sla.completeness),
+            )
+        )
 
     if old.sla.availability != new.sla.availability:
-        changes.append(ContractChange(
-            field="sla.availability",
-            change_type="changed" if old.sla.availability and new.sla.availability else ("added" if new.sla.availability else "removed"),
-            old_value=old.sla.availability,
-            new_value=new.sla.availability,
-            is_breaking=bool(new.sla.availability),
-        ))
+        changes.append(
+            ContractChange(
+                field="sla.availability",
+                change_type=(
+                    "changed"
+                    if old.sla.availability and new.sla.availability
+                    else ("added" if new.sla.availability else "removed")
+                ),
+                old_value=old.sla.availability,
+                new_value=new.sla.availability,
+                is_breaking=bool(new.sla.availability),
+            )
+        )
 
     return changes

@@ -35,11 +35,7 @@ def check_custom_sql(
     query = check_config.params.get("query", "")
     name = check_config.params.get("name", "custom_sql")
 
-    severity = (
-        Severity(check_config.severity)
-        if check_config.severity
-        else Severity.CRITICAL
-    )
+    severity = Severity(check_config.severity) if check_config.severity else Severity.CRITICAL
 
     if not query.strip():
         return CheckResult(
@@ -47,7 +43,10 @@ def check_custom_sql(
             check_type="custom_sql",
             status=Status.ERROR,
             severity=severity,
-            observed_value="No query provided. Use: custom_sql: \"SELECT ...\" or custom_sql: {query: \"SELECT ...\"}",
+            observed_value=(
+                "No query provided. Use: custom_sql: "
+                '"SELECT ..." or custom_sql: {query: "SELECT ..."}'
+            ),
             expected_value="True",
         )
 

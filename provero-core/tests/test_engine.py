@@ -74,11 +74,13 @@ def _make_suite(checks: list[CheckConfig], table: str = "orders") -> SuiteConfig
 
 class TestRunSuiteOptimized:
     def test_all_pass(self, orders_connector):
-        suite = _make_suite([
-            CheckConfig(check_type="not_null", columns=["order_id", "customer_id"]),
-            CheckConfig(check_type="unique", column="order_id"),
-            CheckConfig(check_type="row_count", params={"min": 1, "max": 100}),
-        ])
+        suite = _make_suite(
+            [
+                CheckConfig(check_type="not_null", columns=["order_id", "customer_id"]),
+                CheckConfig(check_type="unique", column="order_id"),
+                CheckConfig(check_type="row_count", params={"min": 1, "max": 100}),
+            ]
+        )
         result = run_suite(suite, orders_connector, optimize=True)
 
         assert result.status == Status.PASS
@@ -88,10 +90,12 @@ class TestRunSuiteOptimized:
         assert result.quality_score == 100.0
 
     def test_mixed_pass_fail(self, orders_connector):
-        suite = _make_suite([
-            CheckConfig(check_type="not_null", column="order_id"),
-            CheckConfig(check_type="unique", column="customer_id"),  # C001 duplicated
-        ])
+        suite = _make_suite(
+            [
+                CheckConfig(check_type="not_null", column="order_id"),
+                CheckConfig(check_type="unique", column="customer_id"),  # C001 duplicated
+            ]
+        )
         result = run_suite(suite, orders_connector, optimize=True)
 
         assert result.status == Status.FAIL
@@ -100,37 +104,45 @@ class TestRunSuiteOptimized:
         assert 0 < result.quality_score < 100
 
     def test_run_id_consistent_across_checks(self, orders_connector):
-        suite = _make_suite([
-            CheckConfig(check_type="not_null", column="order_id"),
-            CheckConfig(check_type="row_count", params={"min": 1}),
-        ])
+        suite = _make_suite(
+            [
+                CheckConfig(check_type="not_null", column="order_id"),
+                CheckConfig(check_type="row_count", params={"min": 1}),
+            ]
+        )
         result = run_suite(suite, orders_connector)
         run_ids = {c.run_id for c in result.checks}
         assert len(run_ids) == 1
         assert "" not in run_ids
 
     def test_duration_tracked(self, orders_connector):
-        suite = _make_suite([
-            CheckConfig(check_type="row_count", params={"min": 1}),
-        ])
+        suite = _make_suite(
+            [
+                CheckConfig(check_type="row_count", params={"min": 1}),
+            ]
+        )
         result = run_suite(suite, orders_connector)
         assert result.duration_ms >= 0
 
     def test_severity_propagated_through_optimizer(self, orders_connector):
-        suite = _make_suite([
-            CheckConfig(check_type="not_null", column="order_id", severity="warning"),
-        ])
+        suite = _make_suite(
+            [
+                CheckConfig(check_type="not_null", column="order_id", severity="warning"),
+            ]
+        )
         result = run_suite(suite, orders_connector, optimize=True)
         assert result.checks[0].severity == Severity.WARNING
 
 
 class TestRunSuiteUnoptimized:
     def test_all_pass_no_optimize(self, orders_connector):
-        suite = _make_suite([
-            CheckConfig(check_type="not_null", column="order_id"),
-            CheckConfig(check_type="unique", column="order_id"),
-            CheckConfig(check_type="row_count", params={"min": 1}),
-        ])
+        suite = _make_suite(
+            [
+                CheckConfig(check_type="not_null", column="order_id"),
+                CheckConfig(check_type="unique", column="order_id"),
+                CheckConfig(check_type="row_count", params={"min": 1}),
+            ]
+        )
         result = run_suite(suite, orders_connector, optimize=False)
 
         assert result.status == Status.PASS
@@ -138,12 +150,17 @@ class TestRunSuiteUnoptimized:
         assert result.passed == 3
 
     def test_non_batchable_checks(self, orders_connector):
-        suite = _make_suite([
-            CheckConfig(
-                check_type="custom_sql",
-                params={"name": "positive_amounts", "query": "SELECT COUNT(*) = 0 FROM orders WHERE amount < 0"},
-            ),
-        ])
+        suite = _make_suite(
+            [
+                CheckConfig(
+                    check_type="custom_sql",
+                    params={
+                        "name": "positive_amounts",
+                        "query": "SELECT COUNT(*) = 0 FROM orders WHERE amount < 0",
+                    },
+                ),
+            ]
+        )
         result = run_suite(suite, orders_connector, optimize=True)
         assert result.total == 1
         assert result.checks[0].check_type == "custom_sql"
@@ -152,9 +169,11 @@ class TestRunSuiteUnoptimized:
 
 class TestRunSuiteErrorHandling:
     def test_unknown_check_type_lists_available(self, orders_connector):
-        suite = _make_suite([
-            CheckConfig(check_type="nonexistent_check", column="order_id"),
-        ])
+        suite = _make_suite(
+            [
+                CheckConfig(check_type="nonexistent_check", column="order_id"),
+            ]
+        )
         result = run_suite(suite, orders_connector, optimize=False)
 
         assert result.total == 1
@@ -175,14 +194,16 @@ class TestRunSuiteErrorHandling:
         assert len(error_checks) >= 1
 
     def test_error_does_not_crash_other_checks(self, orders_connector):
-        suite = _make_suite([
-            CheckConfig(check_type="not_null", column="order_id"),
-            CheckConfig(
-                check_type="custom_sql",
-                params={"name": "bad_query", "query": "THIS IS NOT SQL"},
-            ),
-            CheckConfig(check_type="row_count", params={"min": 1}),
-        ])
+        suite = _make_suite(
+            [
+                CheckConfig(check_type="not_null", column="order_id"),
+                CheckConfig(
+                    check_type="custom_sql",
+                    params={"name": "bad_query", "query": "THIS IS NOT SQL"},
+                ),
+                CheckConfig(check_type="row_count", params={"min": 1}),
+            ]
+        )
         result = run_suite(suite, orders_connector, optimize=True)
 
         # Should have at least the batchable checks + the error
@@ -195,15 +216,20 @@ class TestRunSuiteErrorHandling:
 class TestRunSuiteMixedBatchAndIndividual:
     def test_batch_plus_individual(self, orders_connector):
         """Batchable and non-batchable checks both execute correctly."""
-        suite = _make_suite([
-            CheckConfig(check_type="not_null", column="order_id"),
-            CheckConfig(check_type="unique", column="order_id"),
-            CheckConfig(check_type="row_count", params={"min": 1}),
-            CheckConfig(
-                check_type="custom_sql",
-                params={"name": "no_neg", "query": "SELECT COUNT(*) = 0 FROM orders WHERE amount < 0"},
-            ),
-        ])
+        suite = _make_suite(
+            [
+                CheckConfig(check_type="not_null", column="order_id"),
+                CheckConfig(check_type="unique", column="order_id"),
+                CheckConfig(check_type="row_count", params={"min": 1}),
+                CheckConfig(
+                    check_type="custom_sql",
+                    params={
+                        "name": "no_neg",
+                        "query": "SELECT COUNT(*) = 0 FROM orders WHERE amount < 0",
+                    },
+                ),
+            ]
+        )
         result = run_suite(suite, orders_connector, optimize=True)
 
         check_types = {c.check_type for c in result.checks}

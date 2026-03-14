@@ -80,9 +80,7 @@ class TestNotNull:
         assert result.status == Status.PASS
 
     def test_fail(self, duckdb_connection):
-        duckdb_connection._conn.execute(
-            "INSERT INTO orders VALUES (6, NULL, 10.00, 'pending')"
-        )
+        duckdb_connection._conn.execute("INSERT INTO orders VALUES (6, NULL, 10.00, 'pending')")
         runner = get_check_runner("not_null")
         result = runner(
             connection=duckdb_connection,
@@ -213,9 +211,7 @@ class TestCustomSql:
         assert result.status == Status.PASS
 
     def test_fail(self, duckdb_connection):
-        duckdb_connection._conn.execute(
-            "INSERT INTO orders VALUES (6, 'C005', -10.00, 'pending')"
-        )
+        duckdb_connection._conn.execute("INSERT INTO orders VALUES (6, 'C005', -10.00, 'pending')")
         runner = get_check_runner("custom_sql")
         result = runner(
             connection=duckdb_connection,
@@ -437,9 +433,7 @@ class TestCompleteness:
         assert result.observed_value == "100.0%"
 
     def test_fail_below_threshold(self, duckdb_connection):
-        duckdb_connection._conn.execute(
-            "INSERT INTO orders VALUES (6, NULL, 10.00, 'pending')"
-        )
+        duckdb_connection._conn.execute("INSERT INTO orders VALUES (6, NULL, 10.00, 'pending')")
         runner = get_check_runner("completeness")
         result = runner(
             connection=duckdb_connection,
@@ -454,9 +448,7 @@ class TestCompleteness:
         assert result.failing_rows == 1
 
     def test_pass_with_low_threshold(self, duckdb_connection):
-        duckdb_connection._conn.execute(
-            "INSERT INTO orders VALUES (6, NULL, 10.00, 'pending')"
-        )
+        duckdb_connection._conn.execute("INSERT INTO orders VALUES (6, NULL, 10.00, 'pending')")
         runner = get_check_runner("completeness")
         result = runner(
             connection=duckdb_connection,

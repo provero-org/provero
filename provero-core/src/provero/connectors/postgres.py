@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
@@ -35,25 +35,31 @@ class SQLAlchemyConnection:
     def execute(self, query: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         result = self._conn.execute(text(query), params or {})
         columns = list(result.keys())
-        return [dict(zip(columns, row)) for row in result.fetchall()]
+        return [dict(zip(columns, row, strict=True)) for row in result.fetchall()]
 
     def get_columns(self, table: str) -> list[dict[str, Any]]:
         if "." in table:
             schema_name, table_name = table.rsplit(".", 1)
-            result = self._conn.execute(text(
-                "SELECT column_name, data_type, is_nullable "
-                "FROM information_schema.columns "
-                "WHERE table_schema = :schema AND table_name = :table "
-                "ORDER BY ordinal_position"
-            ), {"schema": schema_name, "table": table_name})
+            result = self._conn.execute(
+                text(
+                    "SELECT column_name, data_type, is_nullable "
+                    "FROM information_schema.columns "
+                    "WHERE table_schema = :schema AND table_name = :table "
+                    "ORDER BY ordinal_position"
+                ),
+                {"schema": schema_name, "table": table_name},
+            )
         else:
-            result = self._conn.execute(text(
-                "SELECT column_name, data_type, is_nullable "
-                "FROM information_schema.columns "
-                "WHERE table_name = :table "
-                "AND table_schema NOT IN ('information_schema', 'pg_catalog') "
-                "ORDER BY ordinal_position"
-            ), {"table": table})
+            result = self._conn.execute(
+                text(
+                    "SELECT column_name, data_type, is_nullable "
+                    "FROM information_schema.columns "
+                    "WHERE table_name = :table "
+                    "AND table_schema NOT IN ('information_schema', 'pg_catalog') "
+                    "ORDER BY ordinal_position"
+                ),
+                {"table": table},
+            )
         return [
             {"name": row[0], "type": row[1], "nullable": row[2] == "YES"}
             for row in result.fetchall()
@@ -107,7 +113,8 @@ class PostgresConnector:
             ],
         }
         if columns:
-            data["columns"] = [c for c in data["columns"] if c["name"] in columns]
+            cols_list = cast(list[dict[str, Any]], data["columns"])
+            data["columns"] = [c for c in cols_list if c["name"] in columns]
         return data
 
 
@@ -154,5 +161,6 @@ class SQLAlchemyConnector:
             ],
         }
         if columns:
-            data["columns"] = [c for c in data["columns"] if c["name"] in columns]
+            cols_list = cast(list[dict[str, Any]], data["columns"])
+            data["columns"] = [c for c in cols_list if c["name"] in columns]
         return data

@@ -48,20 +48,22 @@ class TestParseCheck:
         assert check.params == {"min": 0, "max": 1000}
 
     def test_accepted_values(self):
-        check = parse_check({
-            "accepted_values": {
-                "column": "status",
-                "values": ["a", "b", "c"],
+        check = parse_check(
+            {
+                "accepted_values": {
+                    "column": "status",
+                    "values": ["a", "b", "c"],
+                }
             }
-        })
+        )
         assert check.check_type == "accepted_values"
         assert check.column == "status"
         assert check.params["values"] == ["a", "b", "c"]
 
     def test_severity_parsed_from_dict(self):
-        check = parse_check({
-            "range": {"column": "amount", "min": 0, "max": 1000, "severity": "warning"}
-        })
+        check = parse_check(
+            {"range": {"column": "amount", "min": 0, "max": 1000, "severity": "warning"}}
+        )
         assert check.check_type == "range"
         assert check.severity == "warning"
         assert "severity" not in check.params
@@ -72,6 +74,7 @@ class TestParseCheck:
 
     def test_invalid_check_error_message(self):
         import pytest
+
         with pytest.raises(ValueError, match="Invalid check definition"):
             parse_check({})
 
@@ -79,7 +82,8 @@ class TestParseCheck:
 class TestCompileFile:
     def test_simple_format(self, tmp_path: Path):
         config_file = tmp_path / "provero.yaml"
-        config_file.write_text(dedent("""\
+        config_file.write_text(
+            dedent("""\
             source:
               type: duckdb
               table: orders
@@ -88,7 +92,8 @@ class TestCompileFile:
               - unique: id
               - row_count:
                   min: 100
-        """))
+        """)
+        )
 
         config = compile_file(config_file)
         assert len(config.suites) == 1
@@ -98,7 +103,8 @@ class TestCompileFile:
 
     def test_full_format_with_suites(self, tmp_path: Path):
         config_file = tmp_path / "provero.yaml"
-        config_file.write_text(dedent("""\
+        config_file.write_text(
+            dedent("""\
             version: "1.0"
             sources:
               warehouse:
@@ -117,7 +123,8 @@ class TestCompileFile:
                 table: users
                 checks:
                   - not_null: user_id
-        """))
+        """)
+        )
 
         config = compile_file(config_file)
         assert len(config.suites) == 2

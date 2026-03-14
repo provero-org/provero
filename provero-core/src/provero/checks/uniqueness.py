@@ -45,11 +45,7 @@ def check_unique(
     distinct = row["distinct_count"]
     duplicates = total - distinct
 
-    severity = (
-        Severity(check_config.severity)
-        if check_config.severity
-        else Severity.CRITICAL
-    )
+    severity = Severity(check_config.severity) if check_config.severity else Severity.CRITICAL
 
     return CheckResult(
         check_name=f"unique:{col}",
@@ -62,8 +58,7 @@ def check_unique(
         row_count=total,
         failing_rows=duplicates,
         failing_rows_query=(
-            f"SELECT {qcol}, COUNT(*) as cnt FROM {qtable} "
-            f"GROUP BY {qcol} HAVING COUNT(*) > 1"
+            f"SELECT {qcol}, COUNT(*) as cnt FROM {qtable} GROUP BY {qcol} HAVING COUNT(*) > 1"
         ),
     )
 
@@ -80,9 +75,7 @@ def check_unique_combination(
     qtable = quote_identifier(table)
     qcols = ", ".join(quote_identifier(c) for c in columns)
 
-    result = connection.execute(
-        f"SELECT COUNT(*) as total FROM {qtable}"
-    )
+    result = connection.execute(f"SELECT COUNT(*) as total FROM {qtable}")
     total = result[0]["total"]
 
     result = connection.execute(
@@ -91,11 +84,7 @@ def check_unique_combination(
     distinct = result[0]["distinct_count"]
     duplicates = total - distinct
 
-    severity = (
-        Severity(check_config.severity)
-        if check_config.severity
-        else Severity.CRITICAL
-    )
+    severity = Severity(check_config.severity) if check_config.severity else Severity.CRITICAL
 
     return CheckResult(
         check_name=f"unique_combination:{col_str}",
@@ -107,7 +96,6 @@ def check_unique_combination(
         row_count=total,
         failing_rows=duplicates,
         failing_rows_query=(
-            f"SELECT {qcols}, COUNT(*) as cnt FROM {qtable} "
-            f"GROUP BY {qcols} HAVING COUNT(*) > 1"
+            f"SELECT {qcols}, COUNT(*) as cnt FROM {qtable} GROUP BY {qcols} HAVING COUNT(*) > 1"
         ),
     )

@@ -28,12 +28,11 @@ The registry discovers them automatically at runtime.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from importlib.metadata import entry_points
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from provero.connectors.base import Connection
-    from provero.core.compiler import CheckConfig
     from provero.core.results import CheckResult
 
 CheckRunner = Callable[..., "CheckResult"]
@@ -49,9 +48,11 @@ def register_check(name: str) -> Callable[[CheckRunner], CheckRunner]:
     Used by built-in checks and can be used by plugins that
     are imported directly (not via entry_points).
     """
+
     def decorator(fn: CheckRunner) -> CheckRunner:
         _REGISTRY[name] = fn
         return fn
+
     return decorator
 
 
@@ -61,13 +62,13 @@ def _load_builtins() -> None:
     if _BUILTINS_LOADED:
         return
     _BUILTINS_LOADED = True
-    import provero.checks.completeness  # noqa: F401
-    import provero.checks.uniqueness  # noqa: F401
-    import provero.checks.validity  # noqa: F401
-    import provero.checks.freshness  # noqa: F401
+    import provero.anomaly.checks
+    import provero.checks.completeness
+    import provero.checks.custom
+    import provero.checks.freshness
+    import provero.checks.uniqueness
+    import provero.checks.validity
     import provero.checks.volume  # noqa: F401
-    import provero.checks.custom  # noqa: F401
-    import provero.anomaly.checks  # noqa: F401
 
 
 def _load_plugins() -> None:

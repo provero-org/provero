@@ -33,7 +33,7 @@ def check_accepted_values(
     check_config: CheckConfig,
 ) -> CheckResult:
     """Check that column only contains accepted values."""
-    col = check_config.column
+    col = check_config.column or ""
     values = check_config.params.get("values", [])
     qtable = quote_identifier(table)
     qcol = quote_identifier(col)
@@ -48,11 +48,7 @@ def check_accepted_values(
     total = row["total"]
     invalid = row["invalid_count"]
 
-    severity = (
-        Severity(check_config.severity)
-        if check_config.severity
-        else Severity.CRITICAL
-    )
+    severity = Severity(check_config.severity) if check_config.severity else Severity.CRITICAL
 
     return CheckResult(
         check_name=f"accepted_values:{col}",
@@ -78,7 +74,7 @@ def check_range(
     check_config: CheckConfig,
 ) -> CheckResult:
     """Check that column values fall within a range."""
-    col = check_config.column
+    col = check_config.column or ""
     min_val = check_config.params.get("min")
     max_val = check_config.params.get("max")
     qtable = quote_identifier(table)
@@ -108,11 +104,7 @@ def check_range(
     if max_val is not None:
         expected.append(f"max={max_val}")
 
-    severity = (
-        Severity(check_config.severity)
-        if check_config.severity
-        else Severity.CRITICAL
-    )
+    severity = Severity(check_config.severity) if check_config.severity else Severity.CRITICAL
 
     return CheckResult(
         check_name=f"range:{col}",
@@ -139,16 +131,12 @@ def check_regex(
     Uses regexp_matches() for DuckDB, falls back to col ~ 'pattern'
     (PostgreSQL) and REGEXP (MySQL/SQLite) for cross-database compatibility.
     """
-    col = check_config.column
+    col = check_config.column or ""
     pattern = check_config.params.get("pattern", "")
     qtable = quote_identifier(table)
     qcol = quote_identifier(col)
     safe_pattern = quote_value(pattern)
-    severity = (
-        Severity(check_config.severity)
-        if check_config.severity
-        else Severity.WARNING
-    )
+    severity = Severity(check_config.severity) if check_config.severity else Severity.WARNING
 
     # Try DuckDB syntax first, then PostgreSQL ~, then MySQL/SQLite REGEXP
     queries = [
@@ -164,7 +152,8 @@ def check_regex(
         ),
         (
             f"SELECT COUNT(*) as total, "
-            f"SUM(CASE WHEN NOT ({qcol} REGEXP '{safe_pattern}') THEN 1 ELSE 0 END) as non_matching "
+            f"SUM(CASE WHEN NOT ({qcol} REGEXP '{safe_pattern}') "
+            f"THEN 1 ELSE 0 END) as non_matching "
             f"FROM {qtable} WHERE {qcol} IS NOT NULL"
         ),
     ]
@@ -208,7 +197,17 @@ def check_regex(
 
 # Type mapping from common SQL types to normalized categories
 _TYPE_MAP: dict[str, set[str]] = {
-    "integer": {"integer", "int", "int4", "int8", "int2", "bigint", "smallint", "tinyint", "hugeint"},
+    "integer": {
+        "integer",
+        "int",
+        "int4",
+        "int8",
+        "int2",
+        "bigint",
+        "smallint",
+        "tinyint",
+        "hugeint",
+    },
     "float": {"float", "double", "real", "float4", "float8", "numeric", "decimal", "number"},
     "string": {"varchar", "text", "char", "string", "nvarchar", "nchar", "bpchar", "name"},
     "boolean": {"boolean", "bool"},
@@ -234,21 +233,17 @@ def check_type(
     check_config: CheckConfig,
 ) -> CheckResult:
     """Check that a column has the expected data type."""
-    col = check_config.column
+    col = check_config.column or ""
     expected_type = check_config.params.get("expected", "")
 
     columns = connection.get_columns(table)
     actual_type = None
     for c in columns:
-        if c["name"].lower() == col.lower():
+        if col and c["name"].lower() == col.lower():
             actual_type = c["type"]
             break
 
-    severity = (
-        Severity(check_config.severity)
-        if check_config.severity
-        else Severity.CRITICAL
-    )
+    severity = Severity(check_config.severity) if check_config.severity else Severity.CRITICAL
 
     if actual_type is None:
         return CheckResult(

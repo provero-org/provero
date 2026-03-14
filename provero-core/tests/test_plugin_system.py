@@ -40,18 +40,27 @@ class TestCheckRegistryPlugins:
         """All expected built-in check types are registered."""
         checks = list_checks()
         expected = [
-            "not_null", "unique", "unique_combination",
-            "accepted_values", "range", "regex", "type",
-            "freshness", "latency",
-            "row_count", "completeness",
+            "not_null",
+            "unique",
+            "unique_combination",
+            "accepted_values",
+            "range",
+            "regex",
+            "type",
+            "freshness",
+            "latency",
+            "row_count",
+            "completeness",
             "custom_sql",
-            "anomaly", "row_count_change",
+            "anomaly",
+            "row_count_change",
         ]
         for name in expected:
             assert name in checks, f"Built-in check '{name}' not found in registry"
 
     def test_plugin_check_registered_via_entry_points(self):
         """A plugin check discovered via entry_points is callable."""
+
         def fake_pii_check(**kwargs):
             return CheckResult(
                 check_name="pii_detection",
@@ -67,6 +76,7 @@ class TestCheckRegistryPlugins:
         with patch("provero.checks.registry.entry_points", return_value=[mock_ep]):
             # Force re-discovery
             import provero.checks.registry as reg
+
             reg._PLUGINS_LOADED = False
             reg._load_plugins()
 
@@ -90,6 +100,7 @@ class TestCheckRegistryPlugins:
 
         with patch("provero.checks.registry.entry_points", return_value=[mock_ep]):
             import provero.checks.registry as reg
+
             reg._PLUGINS_LOADED = False
             reg._load_plugins()
 
@@ -100,6 +111,7 @@ class TestCheckRegistryPlugins:
 
     def test_register_check_decorator(self):
         """@register_check decorator works for inline registration."""
+
         @register_check("test_custom_check_xyz")
         def my_check(**kwargs):
             return CheckResult(

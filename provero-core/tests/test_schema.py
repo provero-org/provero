@@ -48,7 +48,11 @@ class TestSchemaSimpleFormat:
     def test_full_simple_format(self, schema):
         config = {
             "version": "1.0",
-            "source": {"type": "postgres", "connection": "postgresql://localhost/db", "table": "orders"},
+            "source": {
+                "type": "postgres",
+                "connection": "postgresql://localhost/db",
+                "table": "orders",
+            },
             "checks": [
                 {"not_null": ["id", "name"]},
                 {"unique": "id"},
@@ -60,7 +64,13 @@ class TestSchemaSimpleFormat:
                 {"completeness": {"column": "email", "min": 0.95}},
                 {"custom_sql": "SELECT COUNT(*) = 0 FROM orders WHERE amount < 0"},
                 {"type": {"column": "id", "expected": "integer"}},
-                {"latency": {"source_column": "event_time", "target_column": "loaded_at", "max_latency": "1h"}},
+                {
+                    "latency": {
+                        "source_column": "event_time",
+                        "target_column": "loaded_at",
+                        "max_latency": "1h",
+                    }
+                },
             ],
         }
         validate(instance=config, schema=schema)
@@ -192,7 +202,9 @@ class TestSchemaContracts:
 
 class TestSchemaExampleFile:
     def test_quickstart_example_validates(self, schema):
-        example_path = Path(__file__).parent.parent.parent / "examples" / "quickstart" / "provero.yaml"
+        example_path = (
+            Path(__file__).parent.parent.parent / "examples" / "quickstart" / "provero.yaml"
+        )
         if not example_path.exists():
             example_path = Path(__file__).parent.parent / "examples" / "quickstart" / "provero.yaml"
         if not example_path.exists():

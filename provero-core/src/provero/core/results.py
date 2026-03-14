@@ -19,15 +19,15 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from functools import partial
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class Status(str, Enum):
+class Status(StrEnum):
     PASS = "pass"
     FAIL = "fail"
     WARN = "warn"
@@ -35,7 +35,7 @@ class Status(str, Enum):
     SKIP = "skip"
 
 
-class Severity(str, Enum):
+class Severity(StrEnum):
     INFO = "info"
     WARNING = "warning"
     CRITICAL = "critical"
@@ -62,7 +62,7 @@ class CheckResult(BaseModel):
     failing_rows_sample: list[dict[str, Any]] = Field(default_factory=list)
     failing_rows_query: str = ""
 
-    started_at: datetime = Field(default_factory=partial(datetime.now, tz=timezone.utc))
+    started_at: datetime = Field(default_factory=partial(datetime.now, tz=UTC))
     duration_ms: int = 0
 
     tags: list[str] = Field(default_factory=list)
@@ -93,7 +93,7 @@ class SuiteResult(BaseModel):
     warned: int = 0
     errored: int = 0
 
-    started_at: datetime = Field(default_factory=partial(datetime.now, tz=timezone.utc))
+    started_at: datetime = Field(default_factory=partial(datetime.now, tz=UTC))
     duration_ms: int = 0
 
     quality_score: float = 0.0
@@ -130,5 +130,7 @@ class SuiteResult(BaseModel):
             for c in self.checks
             if c.status in (Status.PASS, Status.WARN)
         )
-        self.quality_score = round((ok_weight / total_weight) * 100, 1) if total_weight > 0 else 100.0
+        self.quality_score = (
+            round((ok_weight / total_weight) * 100, 1) if total_weight > 0 else 100.0
+        )
         self.status = Status.PASS if self.failed == 0 and self.errored == 0 else Status.FAIL

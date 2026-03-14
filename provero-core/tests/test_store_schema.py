@@ -36,7 +36,7 @@ def store(tmp_path):
 
 class TestStoreSchema:
     def test_all_tables_created(self, store):
-        s, db_path = store
+        _s, db_path = store
         conn = sqlite3.connect(str(db_path))
         tables = conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
@@ -48,7 +48,7 @@ class TestStoreSchema:
         conn.close()
 
     def test_run_has_trigger_and_completed_at(self, store):
-        s, db_path = store
+        _s, db_path = store
         conn = sqlite3.connect(str(db_path))
         info = conn.execute("PRAGMA table_info(provero_run)").fetchall()
         col_names = [row[1] for row in info]
@@ -57,7 +57,7 @@ class TestStoreSchema:
         conn.close()
 
     def test_check_result_has_failing_sample(self, store):
-        s, db_path = store
+        _s, db_path = store
         conn = sqlite3.connect(str(db_path))
         info = conn.execute("PRAGMA table_info(provero_check_result)").fetchall()
         col_names = [row[1] for row in info]
@@ -65,7 +65,7 @@ class TestStoreSchema:
         conn.close()
 
     def test_indexes_created(self, store):
-        s, db_path = store
+        _s, db_path = store
         conn = sqlite3.connect(str(db_path))
         indexes = conn.execute(
             "SELECT name FROM sqlite_master WHERE type='index' ORDER BY name"

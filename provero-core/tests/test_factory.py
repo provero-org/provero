@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -59,6 +59,7 @@ class TestCreateConnector:
         try:
             source = SourceConfig(type="postgres", connection="${TEST_PROVERO_DB}")
             from provero.connectors.postgres import PostgresConnector
+
             connector = create_connector(source)
             assert isinstance(connector, PostgresConnector)
         finally:
@@ -86,7 +87,7 @@ class TestPluginDiscovery:
         try:
             _PLUGIN_REGISTRY["custom_db"] = mock_ep
             source = SourceConfig(type="custom_db", connection="custom://localhost")
-            connector = create_connector(source)
+            create_connector(source)
             mock_ep.load.assert_called_once()
             mock_connector.assert_called_once_with(connection_string="custom://localhost")
         finally:
@@ -103,7 +104,7 @@ class TestPluginDiscovery:
         try:
             _PLUGIN_REGISTRY["embedded_db"] = mock_ep
             source = SourceConfig(type="embedded_db")
-            connector = create_connector(source)
+            create_connector(source)
             mock_connector.assert_called_once_with()
         finally:
             _PLUGIN_REGISTRY.clear()

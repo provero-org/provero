@@ -32,12 +32,14 @@ pandas = pytest.importorskip("pandas")
 @pytest.fixture
 def df_connection():
     """Create a DataFrame connector with test data."""
-    df = pandas.DataFrame({
-        "order_id": [1, 2, 3, 4, 5],
-        "customer_id": ["C001", "C002", "C003", "C001", "C004"],
-        "amount": [150.00, 89.99, 220.50, 45.00, 999.99],
-        "status": ["delivered", "shipped", "pending", "delivered", "cancelled"],
-    })
+    df = pandas.DataFrame(
+        {
+            "order_id": [1, 2, 3, 4, 5],
+            "customer_id": ["C001", "C002", "C003", "C001", "C004"],
+            "amount": [150.00, 89.99, 220.50, 45.00, 999.99],
+            "status": ["delivered", "shipped", "pending", "delivered", "cancelled"],
+        }
+    )
     connector = DataFrameConnector(df, table_name="orders")
     conn = connector.connect()
     yield conn
@@ -88,9 +90,7 @@ class TestDataFrameConnector:
         result = runner(
             connection=df_connection,
             table="orders",
-            check_config=CheckConfig(
-                check_type="row_count", params={"min": 1, "max": 100}
-            ),
+            check_config=CheckConfig(check_type="row_count", params={"min": 1, "max": 100}),
         )
         assert result.status == Status.PASS
 
@@ -108,10 +108,12 @@ class TestDataFrameConnector:
 
 class TestDataFrameWithNulls:
     def test_not_null_detects_nulls(self):
-        df = pandas.DataFrame({
-            "id": [1, 2, None, 4],
-            "name": ["a", "b", "c", "d"],
-        })
+        df = pandas.DataFrame(
+            {
+                "id": [1, 2, None, 4],
+                "name": ["a", "b", "c", "d"],
+            }
+        )
         connector = DataFrameConnector(df, table_name="t")
         conn = connector.connect()
         runner = get_check_runner("not_null")

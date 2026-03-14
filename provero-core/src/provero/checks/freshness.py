@@ -60,7 +60,7 @@ def check_freshness(
     check_config: CheckConfig,
 ) -> CheckResult:
     """Check that data is fresh (most recent row within max_age)."""
-    col = check_config.column
+    col = check_config.column or ""
     max_age_str = check_config.params.get("max_age", "24h")
     max_age_seconds = _parse_duration(max_age_str)
     qtable = quote_identifier(table)
@@ -90,7 +90,9 @@ def check_freshness(
             check_name=f"freshness:{col}",
             check_type="freshness",
             status=Status.FAIL,
-            severity=check_config.severity or Severity.CRITICAL,
+            severity=(
+                Severity(check_config.severity) if check_config.severity else Severity.CRITICAL
+            ),
             column=col,
             observed_value="no data",
             expected_value=f"< {max_age_str}",
@@ -100,7 +102,7 @@ def check_freshness(
         check_name=f"freshness:{col}",
         check_type="freshness",
         status=Status.PASS if age_seconds <= max_age_seconds else Status.FAIL,
-        severity=check_config.severity or Severity.CRITICAL,
+        severity=Severity(check_config.severity) if check_config.severity else Severity.CRITICAL,
         column=col,
         observed_value=f"{_format_duration(age_seconds)} ago",
         expected_value=f"< {max_age_str}",
@@ -118,16 +120,12 @@ def check_latency(
     Measures the time difference between a source timestamp (e.g., event_time)
     and a target timestamp (e.g., loaded_at). Useful for detecting pipeline delays.
     """
-    source_col = check_config.params.get("source_column", check_config.column)
+    source_col: str = check_config.params.get("source_column", check_config.column or "")
     target_col = check_config.params.get("target_column", "")
     max_latency_str = check_config.params.get("max_latency", "1h")
     max_latency_seconds = _parse_duration(max_latency_str)
 
-    severity = (
-        Severity(check_config.severity)
-        if check_config.severity
-        else Severity.WARNING
-    )
+    severity = Severity(check_config.severity) if check_config.severity else Severity.WARNING
 
     if not target_col:
         return CheckResult(
@@ -178,7 +176,7 @@ def check_latency(
             expected_value=f"< {max_latency_str}",
         )
 
-    passed = max_lat <= max_latency_seconds
+    passed = max_lat is not None and max_lat <= max_latency_seconds
 
     return CheckResult(
         check_name=f"latency:{source_col}",
@@ -186,7 +184,10 @@ def check_latency(
         status=Status.PASS if passed else Status.FAIL,
         severity=severity,
         column=source_col,
-        observed_value=f"avg={_format_duration(int(avg_latency))}, max={_format_duration(int(max_lat))}",
+        observed_value=(
+            f"avg={_format_duration(int(avg_latency or 0))}, "
+            f"max={_format_duration(int(max_lat or 0))}"
+        ),
         expected_value=f"< {max_latency_str}",
         row_count=total,
     )

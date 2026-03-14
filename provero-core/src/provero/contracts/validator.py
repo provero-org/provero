@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 def validate_contract(
     contract: ContractConfig,
     connection: Connection,
-    sources: dict[str, "SourceConfig"] | None = None,
+    sources: dict[str, SourceConfig] | None = None,
 ) -> ContractResult:
     """Validate a data contract against a live data source.
 
@@ -55,11 +55,13 @@ def validate_contract(
         return ContractResult(
             contract_name=contract.name,
             status="fail",
-            violations=[ContractViolation(
-                rule="contract.table",
-                message="No table specified in contract",
-                severity=severity,
-            )],
+            violations=[
+                ContractViolation(
+                    rule="contract.table",
+                    message="No table specified in contract",
+                    severity=severity,
+                )
+            ],
         )
 
     # 1. Schema check
@@ -70,11 +72,13 @@ def validate_contract(
             return ContractResult(
                 contract_name=contract.name,
                 status="fail",
-                violations=[ContractViolation(
-                    rule="schema",
-                    message=f"Could not retrieve schema: {e}",
-                    severity=severity,
-                )],
+                violations=[
+                    ContractViolation(
+                        rule="schema",
+                        message=f"Could not retrieve schema: {e}",
+                        severity=severity,
+                    )
+                ],
             )
 
         actual_map: dict[str, str] = {}
@@ -89,38 +93,51 @@ def validate_contract(
             actual_type = actual_map.get(col_contract.name.lower())
 
             if actual_type is None:
-                drift.append(SchemaDrift(
-                    column=col_contract.name,
-                    change_type="removed",
-                    expected=col_contract.type,
-                    actual="",
-                ))
-                violations.append(ContractViolation(
-                    rule="schema.column_missing",
-                    message=f"Column '{col_contract.name}' missing from table",
-                    severity=severity,
-                ))
+                drift.append(
+                    SchemaDrift(
+                        column=col_contract.name,
+                        change_type="removed",
+                        expected=col_contract.type,
+                        actual="",
+                    )
+                )
+                violations.append(
+                    ContractViolation(
+                        rule="schema.column_missing",
+                        message=f"Column '{col_contract.name}' missing from table",
+                        severity=severity,
+                    )
+                )
             elif col_contract.type and not _types_compatible(col_contract.type, actual_type):
-                drift.append(SchemaDrift(
-                    column=col_contract.name,
-                    change_type="type_changed",
-                    expected=col_contract.type,
-                    actual=actual_type,
-                ))
-                violations.append(ContractViolation(
-                    rule="schema.type_mismatch",
-                    message=f"Column '{col_contract.name}' type: expected '{col_contract.type}', got '{actual_type}'",
-                    severity=severity,
-                ))
+                drift.append(
+                    SchemaDrift(
+                        column=col_contract.name,
+                        change_type="type_changed",
+                        expected=col_contract.type,
+                        actual=actual_type,
+                    )
+                )
+                violations.append(
+                    ContractViolation(
+                        rule="schema.type_mismatch",
+                        message=(
+                            f"Column '{col_contract.name}' type:"
+                            f" expected '{col_contract.type}', got '{actual_type}'"
+                        ),
+                        severity=severity,
+                    )
+                )
 
         for actual_name in actual_map:
             if actual_name not in expected_names:
-                drift.append(SchemaDrift(
-                    column=actual_name,
-                    change_type="added",
-                    expected="",
-                    actual=actual_map[actual_name],
-                ))
+                drift.append(
+                    SchemaDrift(
+                        column=actual_name,
+                        change_type="added",
+                        expected="",
+                        actual=actual_map[actual_name],
+                    )
+                )
 
         # Per-column checks
         for col_contract in contract.schema_def.columns:
@@ -192,11 +209,7 @@ def _types_compatible(expected: str, actual: str) -> bool:
         return True
 
     # Check type groups with base types too
-    for group in type_groups:
-        if e_base in group and a_base in group:
-            return True
-
-    return False
+    return any(e_base in group and a_base in group for group in type_groups)
 
 
 def _run_column_check(
@@ -270,13 +283,16 @@ def _check_freshness_sla(
     ts_columns = [
         c.get("name", c.get("column_name", ""))
         for c in columns
-        if any(t in str(c.get("type", c.get("data_type", ""))).lower() for t in ("timestamp", "datetime", "date"))
+        if any(
+            t in str(c.get("type", c.get("data_type", ""))).lower()
+            for t in ("timestamp", "datetime", "date")
+        )
     ]
 
     if not ts_columns:
         return ContractViolation(
             rule="sla.freshness",
-            message=f"No timestamp column found to check freshness (required: {freshness_str})",
+            message=(f"No timestamp column found to check freshness (required: {freshness_str})"),
             severity=severity,
         )
 
@@ -290,7 +306,8 @@ def _check_freshness_sla(
     except Exception:
         try:
             result = connection.execute(
-                f"SELECT EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - MAX({qcol}))) as age_seconds FROM {qtable}"
+                f"SELECT EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - MAX({qcol})))"
+                f" as age_seconds FROM {qtable}"
             )
         except Exception as e:
             return ContractViolation(
@@ -330,7 +347,9 @@ def _check_completeness_sla(
     min_pct = float(completeness_str.rstrip("%")) / 100.0
     qtable = quote_identifier(table)
 
-    columns_to_check = [c.name for c in contract.schema_def.columns] if contract.schema_def.columns else []
+    columns_to_check = (
+        [c.name for c in contract.schema_def.columns] if contract.schema_def.columns else []
+    )
     if not columns_to_check:
         return None
 

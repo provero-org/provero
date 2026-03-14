@@ -124,8 +124,10 @@ def compile_file(path: str | Path) -> ProveroConfig:
 
     # Simple format: source + checks at top level
     if "source" in raw and "checks" in raw:
-        source = SourceConfig(**raw["source"]) if isinstance(raw["source"], dict) else sources.get(
-            raw["source"], SourceConfig(type="unknown")
+        source = (
+            SourceConfig(**raw["source"])
+            if isinstance(raw["source"], dict)
+            else sources.get(raw["source"], SourceConfig(type="unknown"))
         )
         checks = [parse_check(c) for c in raw["checks"]]
         suite = SuiteConfig(
@@ -199,12 +201,14 @@ def _parse_contracts(raw_contracts: list[dict[str, Any]]) -> list[ContractConfig
         if "schema" in raw:
             columns = []
             for col_raw in raw["schema"].get("columns", []):
-                columns.append(ColumnContract(
-                    name=col_raw["name"],
-                    type=col_raw.get("type", ""),
-                    checks=col_raw.get("checks", []),
-                    description=col_raw.get("description", ""),
-                ))
+                columns.append(
+                    ColumnContract(
+                        name=col_raw["name"],
+                        type=col_raw.get("type", ""),
+                        checks=col_raw.get("checks", []),
+                        description=col_raw.get("description", ""),
+                    )
+                )
             schema_def = SchemaContract(columns=columns)
 
         sla = SLAConfig()
@@ -219,16 +223,18 @@ def _parse_contracts(raw_contracts: list[dict[str, Any]]) -> list[ContractConfig
         if "on_violation" in raw:
             on_violation = ViolationAction(raw["on_violation"])
 
-        contracts.append(ContractConfig(
-            name=raw["name"],
-            owner=raw.get("owner", ""),
-            version=raw.get("version", "1.0"),
-            source=raw.get("source", ""),
-            table=raw.get("table", ""),
-            sla=sla,
-            schema_def=schema_def,
-            on_violation=on_violation,
-        ))
+        contracts.append(
+            ContractConfig(
+                name=raw["name"],
+                owner=raw.get("owner", ""),
+                version=raw.get("version", "1.0"),
+                source=raw.get("source", ""),
+                table=raw.get("table", ""),
+                sla=sla,
+                schema_def=schema_def,
+                on_violation=on_violation,
+            )
+        )
 
     return contracts
 

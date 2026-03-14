@@ -9,7 +9,7 @@
 
 A vendor-neutral, declarative data quality engine.
 
-## Quickstart
+## Quick Start
 
 ```bash
 pip install provero
@@ -74,6 +74,99 @@ Score: 100/100 | 7 passed, 0 failed | 22ms
 - **Configurable severity**: info, warning, critical, blocker per check
 - **JSON Schema validation** for provero.yaml
 - **Airflow provider**: ProveroCheckOperator + @provero_check decorator
+
+## Check Types
+
+| Check | Description | Example |
+|-------|-------------|---------|
+| `not_null` | Column has no null values | `not_null: order_id` |
+| `unique` | Column has no duplicate values | `unique: order_id` |
+| `unique_combination` | Composite uniqueness across columns | `unique_combination: [date, store_id]` |
+| `completeness` | Minimum percentage of non-null values | `completeness: { column: email, min: 95% }` |
+| `accepted_values` | Column values are within allowed set | `accepted_values: { column: status, values: [a, b] }` |
+| `range` | Numeric values within min/max bounds | `range: { column: amount, min: 0, max: 100000 }` |
+| `regex` | Values match a regular expression | `regex: { column: email, pattern: ".+@.+" }` |
+| `type` | Column data type matches expected | `type: { column: amount, expected: numeric }` |
+| `freshness` | Most recent timestamp within threshold | `freshness: { column: updated_at, max_age: 24h }` |
+| `latency` | Time between two timestamp columns | `latency: { start: created_at, end: processed_at, max: 1h }` |
+| `row_count` | Table row count within bounds | `row_count: { min: 1, max: 1000000 }` |
+| `row_count_change` | Row count change vs previous run | `row_count_change: { max_decrease: 10% }` |
+| `anomaly` | Statistical anomaly detection | `anomaly: { column: amount, method: zscore }` |
+| `custom_sql` | Custom SQL expression returns true | `custom_sql: { sql: "COUNT(*) > 0" }` |
+
+## Configuration
+
+A `provero.yaml` file defines your data source, checks, alerts, and contracts:
+
+```yaml
+# Source configuration
+source:
+  type: duckdb                    # duckdb, postgres, dataframe
+  table: orders                   # table name or file expression
+  # connection: postgres://...    # connection string for databases
+
+# Quality checks
+checks:
+  - not_null: [order_id, customer_id]
+  - unique: order_id
+  - range:
+      column: amount
+      min: 0
+      max: 100000
+  - freshness:
+      column: updated_at
+      max_age: 24h
+  - anomaly:
+      column: amount
+      method: zscore               # zscore, mad, iqr
+      threshold: 3.0
+      window: 30                   # lookback window in days
+
+# Severity levels: info, warning, critical, blocker
+# Blocker checks cause a non-zero exit code
+
+# Alert notifications
+alerts:
+  - type: webhook
+    url: https://hooks.slack.com/services/YOUR/WEBHOOK
+    trigger: on_failure            # on_failure, on_success, always
+
+# Data contracts (optional)
+contracts:
+  - name: orders_contract
+    owner: data-team
+    table: orders
+    schema:
+      columns:
+        - name: order_id
+          type: integer
+          checks: [not_null, unique]
+    sla:
+      freshness: 24h
+```
+
+## Anomaly Detection
+
+Provero includes built-in statistical anomaly detection that works without external dependencies (no scipy needed).
+
+**Supported methods:**
+
+| Method | Description | Best for |
+|--------|-------------|----------|
+| `zscore` | Standard Z-Score | Normally distributed metrics |
+| `mad` | Median Absolute Deviation | Robust to outliers |
+| `iqr` | Interquartile Range | Skewed distributions |
+
+```yaml
+checks:
+  - anomaly:
+      column: daily_revenue
+      method: mad
+      threshold: 3.5
+      window: 30
+```
+
+Anomaly detection uses the result store to compare current values against historical data. Run `provero run` regularly to build up the baseline.
 
 ## CLI Commands
 
@@ -155,6 +248,35 @@ provero contract diff old.yaml new.yaml
 | Redshift    | Beta     | `pip install provero[redshift]`    |
 
 DuckDB supports file expressions: `read_csv('data.csv')`, `read_parquet('*.parquet')`.
+
+## API
+
+### Python API
+
+```python
+from provero.core.engine import Engine
+
+engine = Engine("provero.yaml")
+results = engine.run()
+
+for result in results:
+    print(f"{result.check_name}: {result.status}")
+```
+
+### Programmatic Configuration
+
+```python
+from provero.core.engine import Engine
+
+engine = Engine.from_dict({
+    "source": {"type": "duckdb", "table": "orders"},
+    "checks": [
+        {"not_null": "order_id"},
+        {"row_count": {"min": 1}},
+    ],
+})
+results = engine.run()
+```
 
 ## Airflow Integration
 

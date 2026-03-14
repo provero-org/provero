@@ -22,13 +22,17 @@ from __future__ import annotations
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from provero.checks.registry import get_check_runner
 from provero.connectors.base import Connector
 from provero.core.compiler import CheckConfig, SuiteConfig
 from provero.core.optimizer import execute_batch, plan_batch
 from provero.core.results import CheckResult, Severity, Status, SuiteResult
+
+if TYPE_CHECKING:
+    from provero.contracts.models import ContractConfig, ContractResult
 
 
 def _run_single_check(
@@ -46,11 +50,17 @@ def _run_single_check(
     # Inject suite context for anomaly/row_count_change checks
     if check_config.check_type in ("anomaly", "row_count_change"):
         check_config = check_config.model_copy(
-            update={"params": {
-                **check_config.params,
-                "_suite_name": suite_name,
-                "_check_name": f"{check_config.check_type}:{check_config.column}" if check_config.column else check_config.check_type,
-            }}
+            update={
+                "params": {
+                    **check_config.params,
+                    "_suite_name": suite_name,
+                    "_check_name": (
+                        f"{check_config.check_type}:{check_config.column}"
+                        if check_config.column
+                        else check_config.check_type
+                    ),
+                }
+            }
         )
 
     try:
@@ -116,11 +126,13 @@ def _expand_multi_column_checks(checks: list[CheckConfig]) -> list[CheckConfig]:
     for check in checks:
         if check.check_type == "not_null" and check.columns and len(check.columns) > 1:
             for col in check.columns:
-                expanded.append(CheckConfig(
-                    check_type="not_null",
-                    column=col,
-                    severity=check.severity,
-                ))
+                expanded.append(
+                    CheckConfig(
+                        check_type="not_null",
+                        column=col,
+                        severity=check.severity,
+                    )
+                )
         else:
             expanded.append(check)
     return expanded
@@ -140,7 +152,7 @@ def run_suite(
     """
     run_id = str(uuid.uuid4())
     suite_start = time.monotonic()
-    started_at = datetime.now(tz=timezone.utc)
+    started_at = datetime.now(tz=UTC)
 
     results: list[CheckResult] = []
     connection = connector.connect()
@@ -165,21 +177,25 @@ def run_suite(
                     r.apply_severity()
                 results.extend(batch_results)
             except Exception as e:
-                results.append(CheckResult(
-                    check_name="batch_query",
-                    check_type="batch",
-                    status=Status.ERROR,
-                    severity=Severity.CRITICAL,
-                    source=suite.source.type,
-                    table=suite.source.table,
-                    observed_value=(
-                        f"Batch query failed: {e}. "
-                        f"Try running with --no-optimize to isolate the failing check, "
-                        f"or verify that the table '{suite.source.table}' exists and is accessible."
-                    ),
-                    run_id=run_id,
-                    suite=suite.name,
-                ))
+                results.append(
+                    CheckResult(
+                        check_name="batch_query",
+                        check_type="batch",
+                        status=Status.ERROR,
+                        severity=Severity.CRITICAL,
+                        source=suite.source.type,
+                        table=suite.source.table,
+                        observed_value=(
+                            f"Batch query failed: {e}. "
+                            f"Try running with --no-optimize to isolate"
+                            f" the failing check, or verify that the"
+                            f" table '{suite.source.table}' exists"
+                            f" and is accessible."
+                        ),
+                        run_id=run_id,
+                        suite=suite.name,
+                    )
+                )
 
         # Execute non-batchable checks individually
         remaining = plan.non_batchable
@@ -192,22 +208,25 @@ def run_suite(
         runner = get_check_runner(check_config.check_type)
         if runner is None:
             from provero.checks.registry import list_checks
+
             available = ", ".join(sorted(list_checks()))
-            results.append(CheckResult(
-                check_name=f"{check_config.check_type}:{check_config.column or ''}",
-                check_type=check_config.check_type,
-                status=Status.ERROR,
-                severity=Severity.CRITICAL,
-                source=suite.source.type,
-                table=suite.source.table,
-                column=check_config.column,
-                observed_value=(
-                    f"Unknown check type '{check_config.check_type}'. "
-                    f"Available types: {available}"
-                ),
-                run_id=run_id,
-                suite=suite.name,
-            ))
+            results.append(
+                CheckResult(
+                    check_name=f"{check_config.check_type}:{check_config.column or ''}",
+                    check_type=check_config.check_type,
+                    status=Status.ERROR,
+                    severity=Severity.CRITICAL,
+                    source=suite.source.type,
+                    table=suite.source.table,
+                    column=check_config.column,
+                    observed_value=(
+                        f"Unknown check type '{check_config.check_type}'. "
+                        f"Available types: {available}"
+                    ),
+                    run_id=run_id,
+                    suite=suite.name,
+                )
+            )
         else:
             runnable.append((runner, check_config))
 
@@ -217,8 +236,13 @@ def run_suite(
             futures = {
                 executor.submit(
                     _run_single_check,
-                    runner, connection, suite.source.table, check_config,
-                    suite.name, suite.source.type, run_id,
+                    runner,
+                    connection,
+                    suite.source.table,
+                    check_config,
+                    suite.name,
+                    suite.source.type,
+                    run_id,
                 ): check_config
                 for runner, check_config in runnable
             }
@@ -228,8 +252,13 @@ def run_suite(
         # Sequential execution (default)
         for runner, check_config in runnable:
             result = _run_single_check(
-                runner, connection, suite.source.table, check_config,
-                suite.name, suite.source.type, run_id,
+                runner,
+                connection,
+                suite.source.table,
+                check_config,
+                suite.name,
+                suite.source.type,
+                run_id,
             )
             results.append(result)
 
@@ -249,10 +278,10 @@ def run_suite(
 
 
 def run_contract(
-    contract: "ContractConfig",
+    contract: ContractConfig,
     connector: Connector,
     sources: dict | None = None,
-) -> "ContractResult":
+) -> ContractResult:
     """Execute contract validation against a data source.
 
     Args:

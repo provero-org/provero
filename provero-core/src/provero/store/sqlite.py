@@ -21,10 +21,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
-from provero.core.results import CheckResult, Status, SuiteResult
+from provero.core.results import CheckResult, SuiteResult
 
 DEFAULT_DB_PATH = Path(".provero/results.db")
 
@@ -98,9 +98,10 @@ class SQLiteStore:
         run_id = result.checks[0].run_id if result.checks else ""
         if not run_id:
             import uuid
+
             run_id = str(uuid.uuid4())
 
-        completed_at = datetime.now(tz=timezone.utc).isoformat()
+        completed_at = datetime.now(tz=UTC).isoformat()
         self._conn.execute(
             """INSERT INTO provero_run
                (id, suite_name, status, trigger, total, passed, failed, warned, errored,
@@ -156,7 +157,7 @@ class SQLiteStore:
 
     def _store_metrics(self, suite_name: str, check: CheckResult) -> None:
         """Extract and store numeric metrics from a check result."""
-        now = datetime.now(tz=timezone.utc).isoformat()
+        now = datetime.now(tz=UTC).isoformat()
         insert_sql = (
             "INSERT INTO provero_metric "
             "(suite_name, check_name, metric_name, value, recorded_at) "
@@ -166,22 +167,28 @@ class SQLiteStore:
         if check.check_type == "row_count":
             try:
                 value = float(str(check.observed_value).replace(",", ""))
-                self._conn.execute(insert_sql, (suite_name, check.check_name, "row_count", value, now))
+                self._conn.execute(
+                    insert_sql,
+                    (suite_name, check.check_name, "row_count", value, now),
+                )
             except ValueError:
                 pass
 
         if check.check_type == "not_null" and check.failing_rows is not None:
-            self._conn.execute(insert_sql, (suite_name, check.check_name, "null_count", float(check.failing_rows), now))
+            self._conn.execute(
+                insert_sql,
+                (suite_name, check.check_name, "null_count", float(check.failing_rows), now),
+            )
 
         if check.check_type == "completeness" and check.observed_value:
             try:
                 # observed_value is like "95.0%" from completeness check
                 raw = str(check.observed_value).strip()
-                if raw.endswith("%"):
-                    pct = float(raw[:-1]) / 100.0
-                else:
-                    pct = float(raw)
-                self._conn.execute(insert_sql, (suite_name, check.check_name, "completeness_pct", pct, now))
+                pct = float(raw[:-1]) / 100.0 if raw.endswith("%") else float(raw)
+                self._conn.execute(
+                    insert_sql,
+                    (suite_name, check.check_name, "completeness_pct", pct, now),
+                )
             except (ValueError, TypeError):
                 pass
 
@@ -192,14 +199,20 @@ class SQLiteStore:
 
         if check.failing_rows is not None and check.row_count and check.row_count > 0:
             fail_rate = check.failing_rows / check.row_count
-            self._conn.execute(insert_sql, (suite_name, check.check_name, "fail_rate", fail_rate, now))
+            self._conn.execute(
+                insert_sql,
+                (suite_name, check.check_name, "fail_rate", fail_rate, now),
+            )
 
         # Store any numeric observed_value as a generic metric
         if check.check_type not in ("row_count", "not_null", "completeness", "row_count_change"):
             try:
                 observed_str = str(check.observed_value).split()[0].replace(",", "")
                 numeric_val = float(observed_str)
-                self._conn.execute(insert_sql, (suite_name, check.check_name, "observed_value", numeric_val, now))
+                self._conn.execute(
+                    insert_sql,
+                    (suite_name, check.check_name, "observed_value", numeric_val, now),
+                )
             except (ValueError, TypeError, IndexError):
                 pass
 

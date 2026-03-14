@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
@@ -51,7 +51,7 @@ class SLAConfig(BaseModel):
     availability: str = ""
 
 
-class ViolationAction(str, Enum):
+class ViolationAction(StrEnum):
     BLOCK = "block"
     WARN = "warn"
     QUARANTINE = "quarantine"

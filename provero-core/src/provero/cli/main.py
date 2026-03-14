@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from rich.console import Console
@@ -65,8 +66,17 @@ def version() -> None:
 
 @app.command()
 def init(
-    path: Path = typer.Argument(Path("provero.yaml"), help="Path for the config file"),
-    from_source: str | None = typer.Option(None, "--from-source", help="Generate checks by profiling a table (e.g. duckdb:my_table)"),
+    path: Annotated[
+        Path,
+        typer.Argument(help="Path for the config file"),
+    ] = Path("provero.yaml"),
+    from_source: Annotated[
+        str | None,
+        typer.Option(
+            "--from-source",
+            help="Generate checks by profiling a table (e.g. duckdb:my_table)",
+        ),
+    ] = None,
 ) -> None:
     """Create a new provero.yaml template.
 
@@ -100,7 +110,10 @@ def init(
         checks = suggest_checks(profile)
         yaml_content = checks_to_yaml(checks, source_type, table_name)
         path.write_text(yaml_content)
-        console.print(f"[green]Created {path} with {len(checks)} suggested checks from profiling {table_name}[/green]")
+        console.print(
+            f"[green]Created {path} with {len(checks)} suggested checks"
+            f" from profiling {table_name}[/green]"
+        )
         console.print("Review the file and run: provero run")
     else:
         path.write_text(TEMPLATE)
@@ -110,14 +123,38 @@ def init(
 
 @app.command()
 def run(
-    config: Path = typer.Option(Path("provero.yaml"), "--config", "-c", help="Config file path"),
-    suite: str | None = typer.Option(None, "--suite", "-s", help="Run specific suite"),
-    tag: str | None = typer.Option(None, "--tag", "-t", help="Run suites with this tag"),
-    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
-    no_store: bool = typer.Option(False, "--no-store", help="Don't persist results"),
-    no_optimize: bool = typer.Option(False, "--no-optimize", help="Disable SQL batching"),
-    no_alerts: bool = typer.Option(False, "--no-alerts", help="Don't send alerts"),
-    report: str | None = typer.Option(None, "--report", help="Generate report: html"),
+    config: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Config file path"),
+    ] = Path("provero.yaml"),
+    suite: Annotated[
+        str | None,
+        typer.Option("--suite", "-s", help="Run specific suite"),
+    ] = None,
+    tag: Annotated[
+        str | None,
+        typer.Option("--tag", "-t", help="Run suites with this tag"),
+    ] = None,
+    output_format: Annotated[
+        str,
+        typer.Option("--format", "-f", help="Output format: table, json"),
+    ] = "table",
+    no_store: Annotated[
+        bool,
+        typer.Option("--no-store", help="Don't persist results"),
+    ] = False,
+    no_optimize: Annotated[
+        bool,
+        typer.Option("--no-optimize", help="Disable SQL batching"),
+    ] = False,
+    no_alerts: Annotated[
+        bool,
+        typer.Option("--no-alerts", help="Don't send alerts"),
+    ] = False,
+    report: Annotated[
+        str | None,
+        typer.Option("--report", help="Generate report: html"),
+    ] = None,
 ) -> None:
     """Run quality checks."""
     if not config.exists():
@@ -134,6 +171,7 @@ def run(
     store = None
     if not no_store:
         from provero.store.sqlite import SQLiteStore
+
         store = SQLiteStore()
 
     exit_code = 0
@@ -197,13 +235,12 @@ def run(
                     from provero.alerts.sender import _should_fire
 
                     if _should_fire(alert_cfg, result):
-                        console.print(
-                            f"[yellow]Alert delivery failed: {alert_cfg.url}[/yellow]"
-                        )
+                        console.print(f"[yellow]Alert delivery failed: {alert_cfg.url}[/yellow]")
 
     # Generate HTML report if requested
     if report == "html" and all_results:
         from provero.reporting.html import generate_html_report
+
         for result in all_results:
             report_path = Path(f".provero/reports/{result.suite_name}.html")
             generate_html_report(
@@ -227,7 +264,10 @@ app.add_typer(contract_app, name="contract")
 
 @contract_app.command("validate")
 def contract_validate(
-    config: Path = typer.Option(Path("provero.yaml"), "--config", "-c", help="Config file path"),
+    config: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Config file path"),
+    ] = Path("provero.yaml"),
 ) -> None:
     """Validate data contracts against live sources."""
     if not config.exists():
@@ -235,7 +275,7 @@ def contract_validate(
         raise typer.Exit(1)
 
     from provero.connectors.factory import create_connector
-    from provero.core.compiler import SourceConfig, compile_file
+    from provero.core.compiler import compile_file
     from provero.core.engine import run_contract
 
     provero_config = compile_file(config)
@@ -254,7 +294,9 @@ def contract_validate(
             exit_code = 1
 
         status_style = {"pass": "green", "fail": "red", "warn": "yellow"}.get(result.status, "dim")
-        console.print(f"\n[{status_style}]{result.contract_name}: {result.status.upper()}[/{status_style}]")
+        console.print(
+            f"\n[{status_style}]{result.contract_name}: {result.status.upper()}[/{status_style}]"
+        )
 
         if result.schema_drift:
             drift_table = Table(title="Schema Drift")
@@ -275,8 +317,14 @@ def contract_validate(
 
 @contract_app.command("diff")
 def contract_diff(
-    old_config: Path = typer.Argument(..., help="Old config file"),
-    new_config: Path = typer.Argument(..., help="New config file"),
+    old_config: Annotated[
+        Path,
+        typer.Argument(help="Old config file"),
+    ],
+    new_config: Annotated[
+        Path,
+        typer.Argument(help="New config file"),
+    ],
 ) -> None:
     """Show differences between two contract versions."""
     from provero.contracts.diff import diff_contracts
@@ -322,9 +370,18 @@ def contract_diff(
 
 @app.command()
 def history(
-    suite_name: str | None = typer.Option(None, "--suite", "-s", help="Filter by suite"),
-    limit: int = typer.Option(20, "--limit", "-n", help="Number of runs to show"),
-    run_id: str | None = typer.Option(None, "--run", "-r", help="Show details for a specific run"),
+    suite_name: Annotated[
+        str | None,
+        typer.Option("--suite", "-s", help="Filter by suite"),
+    ] = None,
+    limit: Annotated[
+        int,
+        typer.Option("--limit", "-n", help="Number of runs to show"),
+    ] = 20,
+    run_id: Annotated[
+        str | None,
+        typer.Option("--run", "-r", help="Show details for a specific run"),
+    ] = None,
 ) -> None:
     """Show historical check results."""
     from provero.store.sqlite import SQLiteStore
@@ -395,7 +452,7 @@ def history(
     store.close()
 
 
-def _resolve_contract_source(contract, provero_config) -> "SourceConfig":
+def _resolve_contract_source(contract, provero_config):
     """Resolve a contract's source reference against config sources."""
     from provero.core.compiler import SourceConfig
 
@@ -404,13 +461,15 @@ def _resolve_contract_source(contract, provero_config) -> "SourceConfig":
         source = provero_config.sources[source_ref]
         return source.model_copy(update={"table": contract.table}) if contract.table else source
 
-    source_type = source_ref or (provero_config.suites[0].source.type if provero_config.suites else "duckdb")
+    source_type = source_ref or (
+        provero_config.suites[0].source.type if provero_config.suites else "duckdb"
+    )
     return SourceConfig(type=source_type, table=contract.table)
 
 
-def _print_table(result: "SuiteResult") -> None:
+def _print_table(result) -> None:
     """Print suite results as a rich table."""
-    from provero.core.results import Status, SuiteResult
+    from provero.core.results import Status
 
     table = Table(title=f"Suite: {result.suite_name}")
     table.add_column("Check", style="cyan")
@@ -451,10 +510,22 @@ def _print_table(result: "SuiteResult") -> None:
 
 @app.command()
 def profile(
-    config: Path = typer.Option(Path("provero.yaml"), "--config", "-c", help="Config file path"),
-    table_name: str | None = typer.Option(None, "--table", "-t", help="Table to profile"),
-    suggest: bool = typer.Option(False, "--suggest", help="Suggest checks based on profile"),
-    sample: int | None = typer.Option(None, "--sample", help="Sample size for large tables"),
+    config: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Config file path"),
+    ] = Path("provero.yaml"),
+    table_name: Annotated[
+        str | None,
+        typer.Option("--table", "-t", help="Table to profile"),
+    ] = None,
+    suggest: Annotated[
+        bool,
+        typer.Option("--suggest", help="Suggest checks based on profile"),
+    ] = False,
+    sample: Annotated[
+        int | None,
+        typer.Option("--sample", help="Sample size for large tables"),
+    ] = None,
 ) -> None:
     """Profile a data source and optionally suggest checks."""
     from provero.connectors.factory import create_connector
@@ -463,7 +534,11 @@ def profile(
 
     if config.exists():
         provero_config = compile_file(config)
-        source = provero_config.suites[0].source if provero_config.suites else SourceConfig(type="duckdb")
+        source = (
+            provero_config.suites[0].source
+            if provero_config.suites
+            else SourceConfig(type="duckdb")
+        )
         tbl = table_name or source.table
     else:
         source = SourceConfig(type="duckdb")
@@ -494,9 +569,24 @@ def profile(
     for col in result.columns:
         null_str = f"{col.null_count:,} ({col.null_pct}%)"
         distinct_str = f"{col.distinct_count:,} ({col.distinct_pct}%)"
-        min_str = str(col.min_value) if col.min_value is not None else (str(col.min_length) + " chars" if col.min_length is not None else "-")
-        max_str = str(col.max_value) if col.max_value is not None else (str(col.max_length) + " chars" if col.max_length is not None else "-")
-        mean_str = str(col.mean_value) if col.mean_value is not None else (str(col.avg_length) + " chars" if col.avg_length is not None else "-")
+        if col.min_value is not None:
+            min_str = str(col.min_value)
+        elif col.min_length is not None:
+            min_str = str(col.min_length) + " chars"
+        else:
+            min_str = "-"
+        if col.max_value is not None:
+            max_str = str(col.max_value)
+        elif col.max_length is not None:
+            max_str = str(col.max_length) + " chars"
+        else:
+            max_str = "-"
+        if col.mean_value is not None:
+            mean_str = str(col.mean_value)
+        elif col.avg_length is not None:
+            mean_str = str(col.avg_length) + " chars"
+        else:
+            mean_str = "-"
 
         tbl_display.add_row(col.name, col.dtype, null_str, distinct_str, min_str, max_str, mean_str)
 
@@ -511,8 +601,14 @@ def profile(
 
 @app.command()
 def validate(
-    config: Path = typer.Option(Path("provero.yaml"), "--config", "-c", help="Config file path"),
-    schema_only: bool = typer.Option(False, "--schema-only", help="Only validate against JSON Schema"),
+    config: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Config file path"),
+    ] = Path("provero.yaml"),
+    schema_only: Annotated[
+        bool,
+        typer.Option("--schema-only", help="Only validate against JSON Schema"),
+    ] = False,
 ) -> None:
     """Validate provero.yaml syntax without running checks."""
     if not config.exists():
@@ -523,7 +619,8 @@ def validate(
     import json
 
     import yaml
-    from jsonschema import ValidationError, validate as json_validate
+    from jsonschema import ValidationError
+    from jsonschema import validate as json_validate
 
     # Step 1: Validate against JSON Schema
     # Load schema.json bundled inside the provero package
@@ -546,7 +643,7 @@ def validate(
     except ValidationError as e:
         path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "root"
         console.print(f"[red]Schema validation failed at '{path}':[/red] {e.message}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     if schema_only:
         return
@@ -557,10 +654,12 @@ def validate(
     try:
         provero_config = compile_file(config)
         total_checks = sum(len(s.checks) for s in provero_config.suites)
-        console.print(f"[green]Valid.[/green] {len(provero_config.suites)} suite(s), {total_checks} check(s)")
+        console.print(
+            f"[green]Valid.[/green] {len(provero_config.suites)} suite(s), {total_checks} check(s)"
+        )
     except Exception as e:
         console.print(f"[red]Invalid:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 if __name__ == "__main__":

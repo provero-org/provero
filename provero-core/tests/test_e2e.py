@@ -51,7 +51,8 @@ class TestEndToEnd:
     def test_yaml_to_results(self, duckdb_file, tmp_path):
         """Full pipeline: YAML -> compile -> connect -> run -> assert results."""
         config_path = tmp_path / "provero.yaml"
-        config_path.write_text(textwrap.dedent(f"""\
+        config_path.write_text(
+            textwrap.dedent(f"""\
             source:
               type: duckdb
               connection: "{duckdb_file}"
@@ -63,7 +64,8 @@ class TestEndToEnd:
               - row_count:
                   min: 1
                   max: 100
-        """))
+        """)
+        )
 
         from provero.connectors.factory import create_connector
 
@@ -117,12 +119,14 @@ class TestEndToEnd:
         contract = ContractConfig(
             name="orders_contract",
             table="orders",
-            schema_def=SchemaContract(columns=[
-                ColumnContract(name="order_id", type="integer"),
-                ColumnContract(name="customer_id", type="varchar"),
-                ColumnContract(name="amount", type="decimal"),
-                ColumnContract(name="status", type="varchar"),
-            ]),
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="order_id", type="integer"),
+                    ColumnContract(name="customer_id", type="varchar"),
+                    ColumnContract(name="amount", type="decimal"),
+                    ColumnContract(name="status", type="varchar"),
+                ]
+            ),
             sla=SLAConfig(availability="true"),
         )
         result = validate_contract(contract, duckdb_orders)
@@ -152,7 +156,8 @@ class TestEndToEnd:
     def test_suite_tag_filter(self, duckdb_file, tmp_path):
         """YAML with tagged suites, only matching tag runs."""
         config_path = tmp_path / "provero.yaml"
-        config_path.write_text(textwrap.dedent(f"""\
+        config_path.write_text(
+            textwrap.dedent(f"""\
             version: "1.0"
             suites:
               - name: critical_suite
@@ -173,7 +178,8 @@ class TestEndToEnd:
                 checks:
                   - row_count:
                       min: 1
-        """))
+        """)
+        )
 
         config = compile_file(config_path)
 
@@ -207,7 +213,8 @@ class TestEndToEnd:
     def test_full_pipeline_yaml_to_report(self, duckdb_file, tmp_path):
         """Complete pipeline: YAML -> compile -> engine -> store -> HTML report."""
         config_path = tmp_path / "provero.yaml"
-        config_path.write_text(textwrap.dedent(f"""\
+        config_path.write_text(
+            textwrap.dedent(f"""\
             source:
               type: duckdb
               connection: "{duckdb_file}"
@@ -218,7 +225,8 @@ class TestEndToEnd:
               - unique: order_id
               - row_count:
                   min: 1
-        """))
+        """)
+        )
 
         from provero.connectors.factory import create_connector
 

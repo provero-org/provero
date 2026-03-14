@@ -156,7 +156,8 @@ class TestSendAlerts:
 class TestAlertConfigParsing:
     def test_alerts_parsed_from_yaml(self, tmp_path):
         config_path = tmp_path / "provero.yaml"
-        config_path.write_text(textwrap.dedent("""\
+        config_path.write_text(
+            textwrap.dedent("""\
             source:
               type: duckdb
               table: orders
@@ -173,7 +174,8 @@ class TestAlertConfigParsing:
               - type: webhook
                 url: https://pd.example.com/alert
                 trigger: always
-        """))
+        """)
+        )
 
         config = compile_file(config_path)
         assert len(config.alerts) == 2
@@ -184,14 +186,16 @@ class TestAlertConfigParsing:
 
     def test_no_alerts_is_empty_list(self, tmp_path):
         config_path = tmp_path / "provero.yaml"
-        config_path.write_text(textwrap.dedent("""\
+        config_path.write_text(
+            textwrap.dedent("""\
             source:
               type: duckdb
               table: orders
 
             checks:
               - not_null: order_id
-        """))
+        """)
+        )
 
         config = compile_file(config_path)
         assert config.alerts == []

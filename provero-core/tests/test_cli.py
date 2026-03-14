@@ -71,7 +71,8 @@ class TestRun:
     def test_failing_checks(self, cli_runner, duckdb_file, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         config = tmp_path / "fail.yaml"
-        config.write_text(textwrap.dedent(f"""\
+        config.write_text(
+            textwrap.dedent(f"""\
             source:
               type: duckdb
               connection: "{duckdb_file}"
@@ -79,7 +80,8 @@ class TestRun:
 
             checks:
               - unique: customer_id
-        """))
+        """)
+        )
         result = cli_runner.invoke(app, ["run", "--config", str(config), "--no-store"])
         assert result.exit_code == 1
 
@@ -142,7 +144,8 @@ class TestContract:
     def test_contract_validate(self, cli_runner, duckdb_file, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         config = tmp_path / "contract.yaml"
-        config.write_text(textwrap.dedent(f"""\
+        config.write_text(
+            textwrap.dedent(f"""\
             version: "1.0"
             sources:
               warehouse:
@@ -170,15 +173,15 @@ class TestContract:
                       type: decimal
                     - name: status
                       type: varchar
-        """))
-        result = cli_runner.invoke(
-            app, ["contract", "validate", "--config", str(config)]
+        """)
         )
+        result = cli_runner.invoke(app, ["contract", "validate", "--config", str(config)])
         assert result.exit_code == 0
 
     def test_contract_diff(self, cli_runner, tmp_path):
         old_config = tmp_path / "old.yaml"
-        old_config.write_text(textwrap.dedent("""\
+        old_config.write_text(
+            textwrap.dedent("""\
             source:
               type: duckdb
               table: orders
@@ -193,9 +196,11 @@ class TestContract:
                   columns:
                     - name: order_id
                       type: integer
-        """))
+        """)
+        )
         new_config = tmp_path / "new.yaml"
-        new_config.write_text(textwrap.dedent("""\
+        new_config.write_text(
+            textwrap.dedent("""\
             source:
               type: duckdb
               table: orders
@@ -212,9 +217,8 @@ class TestContract:
                       type: integer
                     - name: name
                       type: varchar
-        """))
-        result = cli_runner.invoke(
-            app, ["contract", "diff", str(old_config), str(new_config)]
+        """)
         )
+        result = cli_runner.invoke(app, ["contract", "diff", str(old_config), str(new_config)])
         assert result.exit_code == 0
         assert "orders_contract" in result.output

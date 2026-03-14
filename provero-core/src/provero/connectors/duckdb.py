@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import duckdb
 
@@ -35,7 +35,7 @@ class DuckDBConnection:
     def execute(self, query: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         result = self._conn.execute(query)
         columns = [desc[0] for desc in result.description]
-        return [dict(zip(columns, row)) for row in result.fetchall()]
+        return [dict(zip(columns, row, strict=True)) for row in result.fetchall()]
 
     def get_columns(self, table: str) -> list[dict[str, Any]]:
         if is_expression(table):
@@ -91,5 +91,6 @@ class DuckDBConnector:
             ],
         }
         if columns:
-            data["columns"] = [c for c in data["columns"] if c["name"] in columns]
+            cols_list = cast(list[dict[str, Any]], data["columns"])
+            data["columns"] = [c for c in cols_list if c["name"] in columns]
         return data

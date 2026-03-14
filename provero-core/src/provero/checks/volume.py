@@ -49,11 +49,7 @@ def check_row_count(
     if max_count is not None:
         expected_parts.append(f"<= {max_count:,}")
 
-    severity = (
-        Severity(check_config.severity)
-        if check_config.severity
-        else Severity.CRITICAL
-    )
+    severity = Severity(check_config.severity) if check_config.severity else Severity.CRITICAL
 
     return CheckResult(
         check_name="row_count",

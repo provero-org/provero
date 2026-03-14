@@ -27,7 +27,12 @@ from provero.core.results import CheckResult, Severity, Status
 from provero.core.sql import quote_identifier
 
 
-def _query_metric(connection: Connection, table: str, metric: str, column: str | None) -> float | None:
+def _query_metric(
+    connection: Connection,
+    table: str,
+    metric: str,
+    column: str | None,
+) -> float | None:
     """Query the current value of a metric from the data source."""
     qtable = quote_identifier(table)
 
@@ -136,11 +141,7 @@ def check_anomaly(
     threshold_override = check_config.params.get("threshold")
     col = check_config.column or check_config.params.get("column")
 
-    severity = (
-        Severity(check_config.severity)
-        if check_config.severity
-        else Severity.WARNING
-    )
+    severity = Severity(check_config.severity) if check_config.severity else Severity.WARNING
 
     check_label = f"anomaly:{col or metric}"
 
@@ -193,10 +194,10 @@ def check_anomaly(
 
     # 3. Run anomaly detection
     if threshold_override is not None:
-        from provero.anomaly.models import SENSITIVITY_THRESHOLDS
         # Use direct threshold, bypass sensitivity mapping
         detector = {"zscore": "zscore", "mad": "mad", "iqr": "iqr"}.get(method, "mad")
         from provero.anomaly.detectors import _DETECTORS
+
         detect_fn = _DETECTORS.get(detector)
         if detect_fn:
             result = detect_fn(historical, current, float(threshold_override))
@@ -243,11 +244,7 @@ def check_row_count_change(
     suite_name = check_config.params.get("_suite_name", "")
     store_path = check_config.params.get("_store_path", "")
 
-    severity = (
-        Severity(check_config.severity)
-        if check_config.severity
-        else Severity.WARNING
-    )
+    severity = Severity(check_config.severity) if check_config.severity else Severity.WARNING
 
     max_decrease = float(max_decrease_str.rstrip("%")) / 100.0
     max_increase = float(max_increase_str.rstrip("%")) / 100.0

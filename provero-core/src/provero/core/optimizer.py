@@ -35,7 +35,6 @@ The optimizer compiles them into one:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
 
 from provero.connectors.base import Connection
 from provero.core.compiler import CheckConfig
@@ -61,7 +60,9 @@ class BatchPlan:
     non_batchable: list[CheckConfig] = field(default_factory=list)
 
     def add_metric(self, alias: str, expression: str, check_config: CheckConfig) -> None:
-        self.metrics.append(BatchedMetric(alias=alias, expression=expression, check_config=check_config))
+        self.metrics.append(
+            BatchedMetric(alias=alias, expression=expression, check_config=check_config)
+        )
 
 
 # Check types that can be batched into a single query
@@ -78,17 +79,21 @@ def plan_batch(table: str, checks: list[CheckConfig]) -> BatchPlan:
             continue
 
         if check.check_type == "not_null":
-            columns = check.columns or ([check.column] if check.column else [])
+            columns: list[str] = check.columns or ([check.column] if check.column else [])
             for col in columns:
                 qcol = quote_identifier(col)
                 plan.add_metric(
                     alias=f"nn_{col}_null",
                     expression=f"COUNT(*) FILTER (WHERE {qcol} IS NULL)",
-                    check_config=CheckConfig(check_type="not_null", column=col, severity=check.severity),
+                    check_config=CheckConfig(
+                        check_type="not_null",
+                        column=col,
+                        severity=check.severity,
+                    ),
                 )
 
         elif check.check_type == "completeness":
-            col = check.column
+            col = check.column or ""
             qcol = quote_identifier(col)
             plan.add_metric(
                 alias=f"comp_{col}_nonnull",
@@ -106,7 +111,7 @@ def plan_batch(table: str, checks: list[CheckConfig]) -> BatchPlan:
             )
 
         elif check.check_type == "range":
-            col = check.column
+            col = check.column or ""
             qcol = quote_identifier(col)
             plan.add_metric(
                 alias=f"range_{col}_min",
@@ -141,18 +146,20 @@ def plan_batch(table: str, checks: list[CheckConfig]) -> BatchPlan:
             )
 
         elif check.check_type == "accepted_values":
-            col = check.column
+            col = check.column or ""
             qcol = quote_identifier(col)
             values = check.params.get("values", [])
             placeholders = ", ".join(f"'{quote_value(str(v))}'" for v in values)
             plan.add_metric(
                 alias=f"av_{col}_invalid",
-                expression=f"COUNT(*) FILTER (WHERE {qcol} NOT IN ({placeholders}) AND {qcol} IS NOT NULL)",
+                expression=(
+                    f"COUNT(*) FILTER (WHERE {qcol} NOT IN ({placeholders}) AND {qcol} IS NOT NULL)"
+                ),
                 check_config=check,
             )
 
     # Always include total row count
-    has_total = any(m.alias == "_total" or m.alias == "_row_count" for m in plan.metrics)
+    has_total = any(m.alias in ("_total", "_row_count") for m in plan.metrics)
     if not has_total and plan.metrics:
         plan.add_metric(
             alias="_total",
@@ -213,25 +220,29 @@ def execute_batch(
                 continue
 
             check = metric.check_config
-            col = check.column
+            col = check.column or ""
 
             if check.check_type == "not_null":
                 null_count = data.get(f"nn_{col}_null", 0)
                 severity = Severity(check.severity) if check.severity else Severity.CRITICAL
                 qtable = quote_identifier(plan.table)
                 qcol = quote_identifier(col)
-                results.append(CheckResult(
-                    check_name=f"not_null:{col}",
-                    check_type="not_null",
-                    status=Status.PASS if null_count == 0 else Status.FAIL,
-                    severity=severity,
-                    column=col,
-                    observed_value=f"{null_count} nulls",
-                    expected_value="0 nulls",
-                    row_count=total,
-                    failing_rows=null_count,
-                    failing_rows_query=f"SELECT * FROM {qtable} WHERE {qcol} IS NULL" if null_count > 0 else "",
-                ))
+                results.append(
+                    CheckResult(
+                        check_name=f"not_null:{col}",
+                        check_type="not_null",
+                        status=Status.PASS if null_count == 0 else Status.FAIL,
+                        severity=severity,
+                        column=col,
+                        observed_value=f"{null_count} nulls",
+                        expected_value="0 nulls",
+                        row_count=total,
+                        failing_rows=null_count,
+                        failing_rows_query=(
+                            f"SELECT * FROM {qtable} WHERE {qcol} IS NULL" if null_count > 0 else ""
+                        ),
+                    )
+                )
                 processed_checks.add(check_key)
 
             elif check.check_type == "completeness":
@@ -239,17 +250,19 @@ def execute_batch(
                 min_comp = check.params.get("min", 0.95)
                 completeness = non_null / total if total > 0 else 0.0
                 severity = Severity(check.severity) if check.severity else Severity.CRITICAL
-                results.append(CheckResult(
-                    check_name=f"completeness:{col}",
-                    check_type="completeness",
-                    status=Status.PASS if completeness >= min_comp else Status.FAIL,
-                    severity=severity,
-                    column=col,
-                    observed_value=f"{completeness:.1%}",
-                    expected_value=f">= {min_comp:.1%}",
-                    row_count=total,
-                    failing_rows=total - non_null,
-                ))
+                results.append(
+                    CheckResult(
+                        check_name=f"completeness:{col}",
+                        check_type="completeness",
+                        status=Status.PASS if completeness >= min_comp else Status.FAIL,
+                        severity=severity,
+                        column=col,
+                        observed_value=f"{completeness:.1%}",
+                        expected_value=f">= {min_comp:.1%}",
+                        row_count=total,
+                        failing_rows=total - non_null,
+                    )
+                )
                 processed_checks.add(check_key)
 
             elif check.check_type == "unique":
@@ -258,21 +271,25 @@ def execute_batch(
                 severity = Severity(check.severity) if check.severity else Severity.CRITICAL
                 qtable = quote_identifier(plan.table)
                 qcol = quote_identifier(col)
-                results.append(CheckResult(
-                    check_name=f"unique:{col}",
-                    check_type="unique",
-                    status=Status.PASS if duplicates == 0 else Status.FAIL,
-                    severity=severity,
-                    column=col,
-                    observed_value=f"{duplicates} duplicates",
-                    expected_value="0 duplicates",
-                    row_count=total,
-                    failing_rows=duplicates,
-                    failing_rows_query=(
-                        f"SELECT {qcol}, COUNT(*) as cnt FROM {qtable} "
-                        f"GROUP BY {qcol} HAVING COUNT(*) > 1"
-                    ) if duplicates > 0 else "",
-                ))
+                results.append(
+                    CheckResult(
+                        check_name=f"unique:{col}",
+                        check_type="unique",
+                        status=Status.PASS if duplicates == 0 else Status.FAIL,
+                        severity=severity,
+                        column=col,
+                        observed_value=f"{duplicates} duplicates",
+                        expected_value="0 duplicates",
+                        row_count=total,
+                        failing_rows=duplicates,
+                        failing_rows_query=(
+                            f"SELECT {qcol}, COUNT(*) as cnt FROM {qtable} "
+                            f"GROUP BY {qcol} HAVING COUNT(*) > 1"
+                        )
+                        if duplicates > 0
+                        else "",
+                    )
+                )
                 processed_checks.add(check_key)
 
             elif check.check_type == "range":
@@ -285,17 +302,19 @@ def execute_batch(
                 if check.params.get("max") is not None:
                     expected_parts.append(f"max={check.params['max']}")
                 severity = Severity(check.severity) if check.severity else Severity.CRITICAL
-                results.append(CheckResult(
-                    check_name=f"range:{col}",
-                    check_type="range",
-                    status=Status.PASS if out_of_range == 0 else Status.FAIL,
-                    severity=severity,
-                    column=col,
-                    observed_value=f"min={min_val}, max={max_val}",
-                    expected_value=", ".join(expected_parts),
-                    row_count=total,
-                    failing_rows=out_of_range,
-                ))
+                results.append(
+                    CheckResult(
+                        check_name=f"range:{col}",
+                        check_type="range",
+                        status=Status.PASS if out_of_range == 0 else Status.FAIL,
+                        severity=severity,
+                        column=col,
+                        observed_value=f"min={min_val}, max={max_val}",
+                        expected_value=", ".join(expected_parts),
+                        row_count=total,
+                        failing_rows=out_of_range,
+                    )
+                )
                 processed_checks.add(check_key)
 
             elif check.check_type == "row_count":
@@ -311,32 +330,36 @@ def execute_batch(
                 if max_count is not None:
                     expected_parts.append(f"<= {max_count:,}")
                 severity = Severity(check.severity) if check.severity else Severity.CRITICAL
-                results.append(CheckResult(
-                    check_name="row_count",
-                    check_type="row_count",
-                    status=Status.PASS if passed else Status.FAIL,
-                    severity=severity,
-                    observed_value=f"{count:,}",
-                    expected_value=" and ".join(expected_parts) if expected_parts else "> 0",
-                    row_count=count,
-                ))
+                results.append(
+                    CheckResult(
+                        check_name="row_count",
+                        check_type="row_count",
+                        status=Status.PASS if passed else Status.FAIL,
+                        severity=severity,
+                        observed_value=f"{count:,}",
+                        expected_value=" and ".join(expected_parts) if expected_parts else "> 0",
+                        row_count=count,
+                    )
+                )
                 processed_checks.add(check_key)
 
             elif check.check_type == "accepted_values":
                 invalid = data.get(f"av_{col}_invalid", 0)
                 values = check.params.get("values", [])
                 severity = Severity(check.severity) if check.severity else Severity.CRITICAL
-                results.append(CheckResult(
-                    check_name=f"accepted_values:{col}",
-                    check_type="accepted_values",
-                    status=Status.PASS if invalid == 0 else Status.FAIL,
-                    severity=severity,
-                    column=col,
-                    observed_value=f"{invalid} invalid values",
-                    expected_value=f"only {values}",
-                    row_count=total,
-                    failing_rows=invalid,
-                ))
+                results.append(
+                    CheckResult(
+                        check_name=f"accepted_values:{col}",
+                        check_type="accepted_values",
+                        status=Status.PASS if invalid == 0 else Status.FAIL,
+                        severity=severity,
+                        column=col,
+                        observed_value=f"{invalid} invalid values",
+                        expected_value=f"only {values}",
+                        row_count=total,
+                        failing_rows=invalid,
+                    )
+                )
                 processed_checks.add(check_key)
 
     return results

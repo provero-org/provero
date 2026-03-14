@@ -19,7 +19,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
+import pytest
 
 from provero.core.results import CheckResult, Severity, Status, SuiteResult
 
@@ -39,7 +41,7 @@ class TestComputeStatus:
             suite_name="s",
             status=Status.PASS,
             checks=[_check(Status.PASS), _check(Status.PASS), _check(Status.PASS)],
-            started_at=datetime.now(tz=timezone.utc),
+            started_at=datetime.now(tz=UTC),
         )
         result.compute_status()
 
@@ -54,7 +56,7 @@ class TestComputeStatus:
             suite_name="s",
             status=Status.PASS,
             checks=[_check(Status.PASS), _check(Status.FAIL), _check(Status.PASS)],
-            started_at=datetime.now(tz=timezone.utc),
+            started_at=datetime.now(tz=UTC),
         )
         result.compute_status()
 
@@ -69,7 +71,7 @@ class TestComputeStatus:
             suite_name="s",
             status=Status.PASS,
             checks=[_check(Status.FAIL), _check(Status.FAIL)],
-            started_at=datetime.now(tz=timezone.utc),
+            started_at=datetime.now(tz=UTC),
         )
         result.compute_status()
 
@@ -81,7 +83,7 @@ class TestComputeStatus:
             suite_name="s",
             status=Status.PASS,
             checks=[_check(Status.PASS), _check(Status.ERROR)],
-            started_at=datetime.now(tz=timezone.utc),
+            started_at=datetime.now(tz=UTC),
         )
         result.compute_status()
 
@@ -93,7 +95,7 @@ class TestComputeStatus:
             suite_name="s",
             status=Status.PASS,
             checks=[_check(Status.PASS), _check(Status.WARN)],
-            started_at=datetime.now(tz=timezone.utc),
+            started_at=datetime.now(tz=UTC),
         )
         result.compute_status()
 
@@ -105,7 +107,7 @@ class TestComputeStatus:
             suite_name="s",
             status=Status.PASS,
             checks=[],
-            started_at=datetime.now(tz=timezone.utc),
+            started_at=datetime.now(tz=UTC),
         )
         result.compute_status()
 
@@ -118,7 +120,7 @@ class TestComputeStatus:
             suite_name="s",
             status=Status.PASS,
             checks=[_check(Status.FAIL)],
-            started_at=datetime.now(tz=timezone.utc),
+            started_at=datetime.now(tz=UTC),
         )
         result.compute_status()
 
@@ -136,7 +138,7 @@ class TestComputeStatus:
                 _check(Status.ERROR),
                 _check(Status.SKIP),
             ],
-            started_at=datetime.now(tz=timezone.utc),
+            started_at=datetime.now(tz=UTC),
         )
         result.compute_status()
 
@@ -148,7 +150,3 @@ class TestComputeStatus:
         assert result.errored == 1
         # PASS(1) + WARN(1) = 2 ok out of 5 total, all CRITICAL weight
         assert result.quality_score == 40.0
-
-
-# Need pytest for approx
-import pytest

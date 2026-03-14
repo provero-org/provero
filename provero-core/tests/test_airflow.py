@@ -22,8 +22,9 @@ from __future__ import annotations
 import pytest
 
 try:
-    from provero.airflow.operators import ProveroCheckOperator
     from provero.airflow.decorators import provero_check
+    from provero.airflow.operators import ProveroCheckOperator
+
     HAS_AIRFLOW_PACKAGE = True
 except ImportError:
     HAS_AIRFLOW_PACKAGE = False

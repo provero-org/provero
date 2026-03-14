@@ -83,9 +83,7 @@ def profile_table(
     if sample_size and row_count > sample_size:
         # Use TABLESAMPLE for cross-database compatibility, with DuckDB USING SAMPLE fallback
         try:
-            connection.execute(
-                f"SELECT 1 FROM {qtable} TABLESAMPLE BERNOULLI(1) LIMIT 1"
-            )
+            connection.execute(f"SELECT 1 FROM {qtable} TABLESAMPLE BERNOULLI(1) LIMIT 1")
             pct = min(100, max(1, int(sample_size / row_count * 100)))
             source_expr = f"(SELECT * FROM {qtable} TABLESAMPLE BERNOULLI({pct}))"
         except Exception:
@@ -122,10 +120,21 @@ def profile_table(
         )
 
         # Numeric stats
-        is_numeric = any(t in col_type for t in [
-            "int", "float", "double", "decimal", "numeric", "real", "bigint", "smallint",
-            "number", "money",
-        ])
+        is_numeric = any(
+            t in col_type
+            for t in [
+                "int",
+                "float",
+                "double",
+                "decimal",
+                "numeric",
+                "real",
+                "bigint",
+                "smallint",
+                "number",
+                "money",
+            ]
+        )
         if is_numeric:
             # Use ANSI SQL: AVG and STDDEV are widely supported.
             # PERCENTILE_CONT is ANSI but not all DBs support it. Try it with a fallback.
@@ -139,8 +148,12 @@ def profile_table(
             )[0]
             profile.min_value = num_stats["min_val"]
             profile.max_value = num_stats["max_val"]
-            profile.mean_value = round(float(num_stats["mean_val"]), 4) if num_stats["mean_val"] else None
-            profile.stddev_value = round(float(num_stats["stddev_val"]), 4) if num_stats["stddev_val"] else None
+            profile.mean_value = (
+                round(float(num_stats["mean_val"]), 4) if num_stats["mean_val"] else None
+            )
+            profile.stddev_value = (
+                round(float(num_stats["stddev_val"]), 4) if num_stats["stddev_val"] else None
+            )
 
             # Try to get median (not universally supported)
             try:
@@ -148,7 +161,11 @@ def profile_table(
                     f"SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY {qcol}) as median_val "
                     f"FROM {source_expr} WHERE {qcol} IS NOT NULL"
                 )[0]
-                profile.median_value = round(float(median_result["median_val"]), 4) if median_result["median_val"] else None
+                profile.median_value = (
+                    round(float(median_result["median_val"]), 4)
+                    if median_result["median_val"]
+                    else None
+                )
             except Exception:
                 profile.median_value = None
 
@@ -164,7 +181,9 @@ def profile_table(
             )[0]
             profile.min_length = str_stats["min_len"]
             profile.max_length = str_stats["max_len"]
-            profile.avg_length = round(float(str_stats["avg_len"]), 1) if str_stats["avg_len"] else None
+            profile.avg_length = (
+                round(float(str_stats["avg_len"]), 1) if str_stats["avg_len"] else None
+            )
 
         # Top values (for columns with reasonable cardinality)
         if distinct_count <= 50:
@@ -207,12 +226,14 @@ def suggest_checks(profile: TableProfile) -> list[dict[str, Any]]:
         # Suggest accepted_values for low-cardinality columns
         if 0 < col.distinct_count <= 20 and col.top_values:
             values = [str(v["value"]) for v in col.top_values]
-            checks.append({
-                "accepted_values": {
-                    "column": col.name,
-                    "values": values,
+            checks.append(
+                {
+                    "accepted_values": {
+                        "column": col.name,
+                        "values": values,
+                    }
                 }
-            })
+            )
 
         # Suggest range for numeric columns
         if col.min_value is not None and col.max_value is not None:
@@ -225,19 +246,21 @@ def suggest_checks(profile: TableProfile) -> list[dict[str, Any]]:
                 max_val = None
             if min_val is not None and max_val is not None:
                 margin = (max_val - min_val) * 0.1 if max_val != min_val else abs(min_val) * 0.1
-                checks.append({
-                    "range": {
-                        "column": col.name,
-                        "min": round(min_val - margin, 2),
-                        "max": round(max_val + margin, 2),
+                checks.append(
+                    {
+                        "range": {
+                            "column": col.name,
+                            "min": round(min_val - margin, 2),
+                            "max": round(max_val + margin, 2),
+                        }
                     }
-                })
+                )
 
     if not_null_cols:
         checks.insert(0, {"not_null": not_null_cols})
 
-    for col in unique_cols:
-        checks.insert(1, {"unique": col})
+    for ucol in unique_cols:
+        checks.insert(1, {"unique": ucol})
 
     return checks
 

@@ -25,8 +25,7 @@ from typing import Any, Protocol
 class Connection(Protocol):
     """A database connection that can execute SQL."""
 
-    def execute(self, query: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-        ...
+    def execute(self, query: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]: ...
 
     def get_columns(self, table: str) -> list[dict[str, Any]]:
         """Return column metadata: [{name, type, nullable}, ...]."""
@@ -74,5 +73,6 @@ class Connector(Protocol):
         from dataclasses import asdict
 
         from provero.core.profiler import profile_table
+
         result = profile_table(connection, table, sample_size=sample_size)
         return asdict(result)

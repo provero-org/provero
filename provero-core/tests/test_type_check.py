@@ -19,8 +19,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from provero.checks.registry import get_check_runner
 from provero.core.compiler import CheckConfig
 from provero.core.results import Status

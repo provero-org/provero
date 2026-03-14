@@ -37,12 +37,14 @@ class TestSchemaValidation:
         contract = ContractConfig(
             name="orders_contract",
             table="orders",
-            schema_def=SchemaContract(columns=[
-                ColumnContract(name="order_id", type="integer"),
-                ColumnContract(name="customer_id", type="varchar"),
-                ColumnContract(name="amount", type="decimal"),
-                ColumnContract(name="status", type="varchar"),
-            ]),
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="order_id", type="integer"),
+                    ColumnContract(name="customer_id", type="varchar"),
+                    ColumnContract(name="amount", type="decimal"),
+                    ColumnContract(name="status", type="varchar"),
+                ]
+            ),
         )
         result = validate_contract(contract, duckdb_orders)
         assert result.status == "pass"
@@ -52,10 +54,12 @@ class TestSchemaValidation:
         contract = ContractConfig(
             name="orders_contract",
             table="orders",
-            schema_def=SchemaContract(columns=[
-                ColumnContract(name="order_id", type="integer"),
-                ColumnContract(name="nonexistent_col", type="varchar"),
-            ]),
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="order_id", type="integer"),
+                    ColumnContract(name="nonexistent_col", type="varchar"),
+                ]
+            ),
         )
         result = validate_contract(contract, duckdb_orders)
         assert any(d.change_type == "removed" for d in result.schema_drift)
@@ -65,9 +69,11 @@ class TestSchemaValidation:
         contract = ContractConfig(
             name="orders_contract",
             table="orders",
-            schema_def=SchemaContract(columns=[
-                ColumnContract(name="order_id", type="integer"),
-            ]),
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="order_id", type="integer"),
+                ]
+            ),
         )
         result = validate_contract(contract, duckdb_orders)
         # Extra columns in table should show as "added" drift
@@ -78,9 +84,11 @@ class TestSchemaValidation:
         contract = ContractConfig(
             name="orders_contract",
             table="orders",
-            schema_def=SchemaContract(columns=[
-                ColumnContract(name="order_id", type="varchar"),  # actual is integer
-            ]),
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="order_id", type="varchar"),  # actual is integer
+                ]
+            ),
         )
         result = validate_contract(contract, duckdb_orders)
         assert any(d.change_type == "type_changed" for d in result.schema_drift)
@@ -89,9 +97,11 @@ class TestSchemaValidation:
         contract = ContractConfig(
             name="orders_contract",
             table="orders",
-            schema_def=SchemaContract(columns=[
-                ColumnContract(name="order_id", type="integer", checks=["not_null", "unique"]),
-            ]),
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="order_id", type="integer", checks=["not_null", "unique"]),
+                ]
+            ),
         )
         result = validate_contract(contract, duckdb_orders)
         # order_id has no nulls and is unique, so should pass
@@ -102,22 +112,28 @@ class TestSchemaValidation:
         contract = ContractConfig(
             name="orders_contract",
             table="orders",
-            schema_def=SchemaContract(columns=[
-                ColumnContract(
-                    name="status",
-                    type="varchar",
-                    checks=[
-                        {"accepted_values": {"values": ["delivered", "shipped", "pending", "cancelled"]}},
-                    ],
-                ),
-                ColumnContract(
-                    name="amount",
-                    type="decimal",
-                    checks=[
-                        {"range": {"min": 0, "max": 1000000}},
-                    ],
-                ),
-            ]),
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(
+                        name="status",
+                        type="varchar",
+                        checks=[
+                            {
+                                "accepted_values": {
+                                    "values": ["delivered", "shipped", "pending", "cancelled"],
+                                }
+                            },
+                        ],
+                    ),
+                    ColumnContract(
+                        name="amount",
+                        type="decimal",
+                        checks=[
+                            {"range": {"min": 0, "max": 1000000}},
+                        ],
+                    ),
+                ]
+            ),
         )
         result = validate_contract(contract, duckdb_orders)
         assert result.status == "pass"
@@ -127,15 +143,21 @@ class TestSchemaValidation:
         contract = ContractConfig(
             name="orders_contract",
             table="orders",
-            schema_def=SchemaContract(columns=[
-                ColumnContract(
-                    name="status",
-                    type="varchar",
-                    checks=[
-                        {"accepted_values": {"values": ["delivered", "shipped"]}},  # missing pending, cancelled
-                    ],
-                ),
-            ]),
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(
+                        name="status",
+                        type="varchar",
+                        checks=[
+                            {
+                                "accepted_values": {
+                                    "values": ["delivered", "shipped"],
+                                }
+                            },  # missing pending, cancelled
+                        ],
+                    ),
+                ]
+            ),
         )
         result = validate_contract(contract, duckdb_orders)
         assert any("accepted_values" in v.rule for v in result.violations)
@@ -166,10 +188,12 @@ class TestSLAValidation:
             name="orders_contract",
             table="orders",
             sla=SLAConfig(completeness="90%"),
-            schema_def=SchemaContract(columns=[
-                ColumnContract(name="order_id"),
-                ColumnContract(name="status"),
-            ]),
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="order_id"),
+                    ColumnContract(name="status"),
+                ]
+            ),
         )
         result = validate_contract(contract, duckdb_orders)
         assert not any(v.rule == "sla.completeness" for v in result.violations)
@@ -181,9 +205,11 @@ class TestOnViolation:
             name="orders_contract",
             table="orders",
             on_violation=ViolationAction.BLOCK,
-            schema_def=SchemaContract(columns=[
-                ColumnContract(name="nonexistent", type="varchar"),
-            ]),
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="nonexistent", type="varchar"),
+                ]
+            ),
         )
         result = validate_contract(contract, duckdb_orders)
         assert result.status == "fail"
@@ -194,9 +220,11 @@ class TestOnViolation:
             name="orders_contract",
             table="orders",
             on_violation=ViolationAction.WARN,
-            schema_def=SchemaContract(columns=[
-                ColumnContract(name="nonexistent", type="varchar"),
-            ]),
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="nonexistent", type="varchar"),
+                ]
+            ),
         )
         result = validate_contract(contract, duckdb_orders)
         assert result.status == "warn"
@@ -214,46 +242,84 @@ class TestContractDiff:
         contract = ContractConfig(
             name="test",
             table="orders",
-            schema_def=SchemaContract(columns=[
-                ColumnContract(name="id", type="integer"),
-            ]),
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="id", type="integer"),
+                ]
+            ),
         )
         changes = diff_contracts(contract, contract)
         assert len(changes) == 0
 
     def test_column_added(self):
-        old = ContractConfig(name="test", table="orders", schema_def=SchemaContract(columns=[
-            ColumnContract(name="id", type="integer"),
-        ]))
-        new = ContractConfig(name="test", table="orders", schema_def=SchemaContract(columns=[
-            ColumnContract(name="id", type="integer"),
-            ColumnContract(name="name", type="varchar"),
-        ]))
+        old = ContractConfig(
+            name="test",
+            table="orders",
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="id", type="integer"),
+                ]
+            ),
+        )
+        new = ContractConfig(
+            name="test",
+            table="orders",
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="id", type="integer"),
+                    ColumnContract(name="name", type="varchar"),
+                ]
+            ),
+        )
         changes = diff_contracts(old, new)
         added = [c for c in changes if c.change_type == "added" and "name" in c.field]
         assert len(added) == 1
         assert not added[0].is_breaking
 
     def test_column_removed_is_breaking(self):
-        old = ContractConfig(name="test", table="orders", schema_def=SchemaContract(columns=[
-            ColumnContract(name="id", type="integer"),
-            ColumnContract(name="name", type="varchar"),
-        ]))
-        new = ContractConfig(name="test", table="orders", schema_def=SchemaContract(columns=[
-            ColumnContract(name="id", type="integer"),
-        ]))
+        old = ContractConfig(
+            name="test",
+            table="orders",
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="id", type="integer"),
+                    ColumnContract(name="name", type="varchar"),
+                ]
+            ),
+        )
+        new = ContractConfig(
+            name="test",
+            table="orders",
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="id", type="integer"),
+                ]
+            ),
+        )
         changes = diff_contracts(old, new)
         removed = [c for c in changes if c.change_type == "removed"]
         assert len(removed) == 1
         assert removed[0].is_breaking
 
     def test_type_change_is_breaking(self):
-        old = ContractConfig(name="test", table="orders", schema_def=SchemaContract(columns=[
-            ColumnContract(name="id", type="integer"),
-        ]))
-        new = ContractConfig(name="test", table="orders", schema_def=SchemaContract(columns=[
-            ColumnContract(name="id", type="varchar"),
-        ]))
+        old = ContractConfig(
+            name="test",
+            table="orders",
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="id", type="integer"),
+                ]
+            ),
+        )
+        new = ContractConfig(
+            name="test",
+            table="orders",
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="id", type="varchar"),
+                ]
+            ),
+        )
         changes = diff_contracts(old, new)
         type_changes = [c for c in changes if "type" in c.field]
         assert len(type_changes) == 1
@@ -287,7 +353,8 @@ class TestCompilerParsing:
     def test_simple_format_with_contracts(self, tmp_path):
         """Contracts should be parsed even in simple format (source + checks at top)."""
         config_path = tmp_path / "provero.yaml"
-        config_path.write_text(textwrap.dedent("""\
+        config_path.write_text(
+            textwrap.dedent("""\
             source:
               type: duckdb
               table: orders
@@ -302,16 +369,19 @@ class TestCompilerParsing:
                   columns:
                     - name: order_id
                       type: integer
-        """))
+        """)
+        )
 
         from provero.core.compiler import compile_file
+
         config = compile_file(config_path)
         assert len(config.contracts) == 1
         assert config.contracts[0].name == "orders_contract"
 
     def test_parse_contracts_from_yaml(self, tmp_path):
         config_path = tmp_path / "provero.yaml"
-        config_path.write_text(textwrap.dedent("""\
+        config_path.write_text(
+            textwrap.dedent("""\
             version: "1.0"
             suites:
               - name: orders_checks
@@ -336,9 +406,11 @@ class TestCompilerParsing:
                 sla:
                   freshness: 24h
                   completeness: "95%"
-        """))
+        """)
+        )
 
         from provero.core.compiler import compile_file
+
         config = compile_file(config_path)
         assert len(config.contracts) == 1
         contract = config.contracts[0]
@@ -356,12 +428,14 @@ class TestContractLiveDB:
         contract = ContractConfig(
             name="orders_full",
             table="orders",
-            schema_def=SchemaContract(columns=[
-                ColumnContract(name="order_id", type="integer"),
-                ColumnContract(name="customer_id", type="varchar"),
-                ColumnContract(name="amount", type="decimal"),
-                ColumnContract(name="status", type="varchar"),
-            ]),
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="order_id", type="integer"),
+                    ColumnContract(name="customer_id", type="varchar"),
+                    ColumnContract(name="amount", type="decimal"),
+                    ColumnContract(name="status", type="varchar"),
+                ]
+            ),
         )
         result = validate_contract(contract, duckdb_orders)
         assert result.status == "pass"
@@ -372,12 +446,14 @@ class TestContractLiveDB:
         contract = ContractConfig(
             name="orders_drift",
             table="orders",
-            schema_def=SchemaContract(columns=[
-                ColumnContract(name="order_id", type="integer"),
-                ColumnContract(name="customer_id", type="varchar"),
-                ColumnContract(name="amount", type="decimal"),
-                ColumnContract(name="status", type="varchar"),
-            ]),
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="order_id", type="integer"),
+                    ColumnContract(name="customer_id", type="varchar"),
+                    ColumnContract(name="amount", type="decimal"),
+                    ColumnContract(name="status", type="varchar"),
+                ]
+            ),
         )
         result = validate_contract(contract, duckdb_orders)
         added = [d for d in result.schema_drift if d.change_type == "added"]
@@ -398,24 +474,28 @@ class TestContractLiveDB:
         old = ContractConfig(
             name="test",
             table="orders",
-            schema_def=SchemaContract(columns=[
-                ColumnContract(
-                    name="status",
-                    type="varchar",
-                    checks=[{"accepted_values": {"values": ["a", "b"]}}],
-                ),
-            ]),
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(
+                        name="status",
+                        type="varchar",
+                        checks=[{"accepted_values": {"values": ["a", "b"]}}],
+                    ),
+                ]
+            ),
         )
         new = ContractConfig(
             name="test",
             table="orders",
-            schema_def=SchemaContract(columns=[
-                ColumnContract(
-                    name="status",
-                    type="varchar",
-                    checks=[{"accepted_values": {"values": ["a", "b", "c"]}}],
-                ),
-            ]),
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(
+                        name="status",
+                        type="varchar",
+                        checks=[{"accepted_values": {"values": ["a", "b", "c"]}}],
+                    ),
+                ]
+            ),
         )
         changes = diff_contracts(old, new)
         # Should detect the check change without crashing
@@ -424,7 +504,8 @@ class TestContractLiveDB:
     def test_multiple_contracts_parsed(self, tmp_path):
         """YAML with 2 contracts, compile_file parses both."""
         config_path = tmp_path / "provero.yaml"
-        config_path.write_text(textwrap.dedent("""\
+        config_path.write_text(
+            textwrap.dedent("""\
             source:
               type: duckdb
               table: orders
@@ -445,9 +526,11 @@ class TestContractLiveDB:
                   columns:
                     - name: event_id
                       type: integer
-        """))
+        """)
+        )
 
         from provero.core.compiler import compile_file
+
         config = compile_file(config_path)
         assert len(config.contracts) == 2
         names = {c.name for c in config.contracts}

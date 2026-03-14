@@ -19,12 +19,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-
-import uuid
 
 from provero.core.results import CheckResult, Severity, Status, SuiteResult
 from provero.store.sqlite import SQLiteStore
@@ -73,7 +72,7 @@ def _make_suite_result(suite_name: str = "test_suite", passed: bool = True) -> S
         suite_name=suite_name,
         status=Status.PASS,
         checks=checks,
-        started_at=datetime.now(tz=timezone.utc),
+        started_at=datetime.now(tz=UTC),
         duration_ms=42,
     )
     result.compute_status()
@@ -83,7 +82,7 @@ def _make_suite_result(suite_name: str = "test_suite", passed: bool = True) -> S
 class TestSQLiteStore:
     def test_save_and_retrieve_history(self, store):
         result = _make_suite_result()
-        run_id = store.save_result(result)
+        store.save_result(result)
 
         history = store.get_history()
         assert len(history) == 1
@@ -120,7 +119,7 @@ class TestSQLiteStore:
         assert metrics[0]["value"] == 100.0
 
     def test_multiple_runs_ordered(self, store):
-        for i in range(5):
+        for _i in range(5):
             store.save_result(_make_suite_result())
 
         history = store.get_history(limit=3)

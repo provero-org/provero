@@ -53,45 +53,61 @@ def generate_html_report(
     template = env.from_string(template_text)
 
     failing_checks = [
-        c for c in suite_result.checks
-        if c.status in (Status.FAIL, Status.WARN) and (c.failing_rows_query or c.failing_rows_sample)
+        c
+        for c in suite_result.checks
+        if c.status in (Status.FAIL, Status.WARN)
+        and (c.failing_rows_query or c.failing_rows_sample)
     ]
 
     checks_data = []
     for c in suite_result.checks:
-        checks_data.append({
-            "check_type": c.check_type,
-            "check_name": c.check_name,
-            "column": c.column,
-            "status": c.status.value,
-            "observed_value": str(c.observed_value) if c.observed_value is not None else "",
-            "expected_value": str(c.expected_value) if c.expected_value is not None else "",
-            "severity": c.severity.value,
-            "failing_rows_query": c.failing_rows_query,
-            "failing_rows_sample": c.failing_rows_sample,
-        })
+        checks_data.append(
+            {
+                "check_type": c.check_type,
+                "check_name": c.check_name,
+                "column": c.column,
+                "status": c.status.value,
+                "observed_value": str(c.observed_value) if c.observed_value is not None else "",
+                "expected_value": str(c.expected_value) if c.expected_value is not None else "",
+                "severity": c.severity.value,
+                "failing_rows_query": c.failing_rows_query,
+                "failing_rows_sample": c.failing_rows_sample,
+            }
+        )
 
     failing_data = []
     for c in failing_checks:
-        failing_data.append({
-            "check_name": c.check_name,
-            "failing_rows_query": c.failing_rows_query,
-            "failing_rows_sample": c.failing_rows_sample,
-        })
+        failing_data.append(
+            {
+                "check_name": c.check_name,
+                "failing_rows_query": c.failing_rows_query,
+                "failing_rows_sample": c.failing_rows_sample,
+            }
+        )
 
     contract_data = None
     if contract_results:
         contract_data = []
         for cr in contract_results:
-            contract_data.append({
-                "contract_name": cr.contract_name,
-                "status": cr.status,
-                "violations": [{"rule": v.rule, "message": v.message, "severity": v.severity} for v in cr.violations],
-                "schema_drift": [
-                    {"column": d.column, "change_type": d.change_type, "expected": d.expected, "actual": d.actual}
-                    for d in cr.schema_drift
-                ],
-            })
+            contract_data.append(
+                {
+                    "contract_name": cr.contract_name,
+                    "status": cr.status,
+                    "violations": [
+                        {"rule": v.rule, "message": v.message, "severity": v.severity}
+                        for v in cr.violations
+                    ],
+                    "schema_drift": [
+                        {
+                            "column": d.column,
+                            "change_type": d.change_type,
+                            "expected": d.expected,
+                            "actual": d.actual,
+                        }
+                        for d in cr.schema_drift
+                    ],
+                }
+            )
 
     html = template.render(
         suite_name=suite_result.suite_name,

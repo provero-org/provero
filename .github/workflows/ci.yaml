@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -48,13 +52,35 @@ jobs:
             if ! head -5 "$f" | grep -q "Licensed to the Apache Software Foundation"; then
               missing+=("$f")
             fi
-          done < <(find provero-core/src/provero -name "*.py" -type f)
+          done < <(find provero-core/src/provero provero-airflow/src/provero -name "*.py" -type f)
           if [ ${#missing[@]} -ne 0 ]; then
             echo "Files missing Apache license header:"
             printf '  %s\n' "${missing[@]}"
             exit 1
           fi
           echo "All Python files have Apache license headers."
+
+  changelog-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check for news fragment
+        run: |
+          if git diff --name-only origin/main...HEAD | grep -q '^newsfragments/'; then
+            echo "News fragment found."
+            exit 0
+          fi
+          # Allow skipping for docs-only or CI-only changes
+          changed=$(git diff --name-only origin/main...HEAD)
+          if echo "$changed" | grep -qvE '\.(md|yml|yaml)$'; then
+            echo "::error::Missing news fragment. Add a file to newsfragments/ (e.g. 42.feature.md)"
+            echo "See CONTRIBUTING.md for details."
+            exit 1
+          fi
+          echo "Docs/CI-only change, skipping changelog requirement."
 
   build-verify:
     runs-on: ubuntu-latest
@@ -79,3 +105,16 @@ jobs:
                   print(f'OK: {matches[0]}')
           print('Wheel contents verified.')
           "
+
+  all-checks:
+    if: always()
+    needs: [lint, test, typecheck, license-check, build-verify]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all checks passed
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "One or more checks failed."
+            exit 1
+          fi
+          echo "All checks passed."

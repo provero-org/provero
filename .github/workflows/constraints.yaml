@@ -1,0 +1,56 @@
+name: Generate constraints
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "pyproject.toml"
+      - "provero-core/pyproject.toml"
+      - "provero-airflow/pyproject.toml"
+      - "uv.lock"
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Generate constraint file
+        run: |
+          mkdir -p constraints
+          uv pip compile provero-core/pyproject.toml \
+            -p ${{ matrix.python-version }} \
+            -o constraints/constraints-${{ matrix.python-version }}.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: constraints-${{ matrix.python-version }}
+          path: constraints/constraints-${{ matrix.python-version }}.txt
+
+  commit:
+    needs: generate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: constraints
+          merge-multiple: true
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          title: "Update constraint files"
+          commit-message: "Update constraint files"
+          branch: update-constraints
+          labels: dependencies,ci
+          body: "Auto-generated constraint files for Python 3.11, 3.12, and 3.13."

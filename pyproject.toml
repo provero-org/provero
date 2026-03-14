@@ -53,4 +53,35 @@ pythonpath = ["provero-core/src"]
 dev = [
     "types-pyyaml>=6.0",
     "types-jsonschema>=4.20",
+    "towncrier>=24.7",
 ]
+
+[tool.towncrier]
+directory = "newsfragments"
+filename = "CHANGELOG.md"
+title_format = "{version} ({project_date})"
+
+[[tool.towncrier.type]]
+directory = "feature"
+name = "Features"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "bugfix"
+name = "Bug Fixes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "breaking"
+name = "Breaking Changes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "doc"
+name = "Documentation"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "misc"
+name = "Misc"
+showcontent = false

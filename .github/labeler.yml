@@ -1,0 +1,41 @@
+core:
+  - changed-files:
+      - any-glob-to-any-file: "provero-core/**"
+
+airflow:
+  - changed-files:
+      - any-glob-to-any-file: "provero-airflow/**"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file: ".github/**"
+
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "*.md"
+
+cli:
+  - changed-files:
+      - any-glob-to-any-file: "provero-core/src/provero/cli/**"
+
+connectors:
+  - changed-files:
+      - any-glob-to-any-file: "provero-core/src/provero/connectors/**"
+
+checks:
+  - changed-files:
+      - any-glob-to-any-file: "provero-core/src/provero/checks/**"
+
+anomaly:
+  - changed-files:
+      - any-glob-to-any-file: "provero-core/src/provero/anomaly/**"
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file: "provero-core/tests/**"
+
+examples:
+  - changed-files:
+      - any-glob-to-any-file: "examples/**"

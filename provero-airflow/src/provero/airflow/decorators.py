@@ -20,7 +20,8 @@
 from __future__ import annotations
 
 import functools
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 
 def provero_check(
@@ -59,9 +60,7 @@ def provero_check(
                 suite_result = run_suite(suite_config, connector)
                 if fail_on_error and suite_result.status == Status.FAIL:
                     failed = [c.check_name for c in suite_result.checks if c.status == Status.FAIL]
-                    raise ValueError(
-                        f"Quality checks failed: {', '.join(failed)}"
-                    )
+                    raise ValueError(f"Quality checks failed: {', '.join(failed)}")
 
             return result
 

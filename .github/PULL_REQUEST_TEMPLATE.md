@@ -13,5 +13,6 @@ Closes #
 - [ ] Tests added or updated
 - [ ] `uv run pytest` passes
 - [ ] `ruff check` and `ruff format` pass
+- [ ] News fragment added in `newsfragments/` (see [CONTRIBUTING.md](../CONTRIBUTING.md))
 - [ ] Documentation updated (if applicable)
 - [ ] Apache license header present on new files

@@ -1,0 +1,56 @@
+version: 2
+
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: "pip"
+    directory: "/provero-core"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "core"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: "pip"
+    directory: "/provero-airflow"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "airflow"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "ci"
+    groups:
+      actions:
+        update-types:
+          - "minor"
+          - "patch"

@@ -93,9 +93,7 @@ class ProveroCheckOperator(BaseOperator):
             all_results.append(result.model_dump())
 
             if self.fail_on_error and result.status == Status.FAIL:
-                failed_checks = [
-                    c.check_name for c in result.checks if c.status == Status.FAIL
-                ]
+                failed_checks = [c.check_name for c in result.checks if c.status == Status.FAIL]
                 msg = (
                     f"Suite '{suite_config.name}' failed. "
                     f"Score: {result.quality_score}/100. "

@@ -78,13 +78,38 @@ Use clear, descriptive commit messages:
 - `fix SQL generation for BigQuery connector`
 - `update profiler to suggest range checks`
 
+### News Fragments (Changelog)
+
+Every PR that changes code must include a news fragment in `newsfragments/`.
+
+Create a file named `<issue-number>.<type>.md` where type is one of:
+
+| Type | When to use |
+|------|------------|
+| `feature` | New functionality |
+| `bugfix` | Bug fix |
+| `breaking` | Breaking change |
+| `doc` | Documentation only |
+| `misc` | Refactoring, CI, deps (no content needed) |
+
+Example: `42.feature.md` with content:
+
+```
+Add freshness check for timestamp columns.
+```
+
+If there's no issue number, use a short descriptive name: `freshness-check.feature.md`.
+
+CI will reject PRs without a news fragment (docs-only and CI-only changes are exempt).
+
 ### Pull Request Process
 
 1. Fill out the PR template
-2. Ensure CI passes (lint, tests, type check, license check)
-3. Wait for review (target: < 1 week)
-4. Address feedback
-5. A maintainer will merge once approved
+2. Add a news fragment in `newsfragments/`
+3. Ensure CI passes (lint, tests, type check, license check)
+4. Wait for review (target: < 1 week)
+5. Address feedback
+6. A maintainer will merge once approved
 
 ### Good First Issues
 

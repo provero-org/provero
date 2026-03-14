@@ -247,11 +247,6 @@ provero contract diff old.yaml new.yaml
 | DuckDB      | Stable   | included                         |
 | PostgreSQL  | Stable   | `pip install provero[postgres]`    |
 | DataFrame   | Stable   | `pip install provero[dataframe]`   |
-| MySQL       | Beta     | `pip install provero` (SQLAlchemy) |
-| SQLite      | Beta     | `pip install provero` (SQLAlchemy) |
-| Snowflake   | Beta     | `pip install provero[snowflake]`   |
-| BigQuery    | Beta     | `pip install provero[bigquery]`    |
-| Redshift    | Beta     | `pip install provero[redshift]`    |
 
 DuckDB supports file expressions: `read_csv('data.csv')`, `read_parquet('*.parquet')`.
 

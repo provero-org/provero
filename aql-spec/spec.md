@@ -67,8 +67,7 @@ suites:
 | `table`     | string | no       | Default table name                   |
 | `conn_id`   | string | no       | Airflow connection ID                |
 
-Supported types: `duckdb`, `postgres`, `postgresql`, `mysql`, `sqlite`,
-`snowflake`, `bigquery`, `redshift`, `databricks`, `dataframe`, `pandas`, `polars`.
+Supported types: `duckdb`, `postgres`, `postgresql`, `dataframe`, `pandas`, `polars`.
 
 ## Check Types
 

@@ -24,6 +24,13 @@ dev = [
     "pytest>=8.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/provero-org/provero"
+Repository = "https://github.com/provero-org/provero"
+Issues = "https://github.com/provero-org/provero/issues"
+Documentation = "https://provero.org/docs"
+Changelog = "https://github.com/provero-org/provero/blob/main/CHANGELOG.md"
+
 [build-system]
 requires = ["hatchling>=1.21"]
 build-backend = "hatchling.build"

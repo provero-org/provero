@@ -1,6 +1,6 @@
 [project]
 name = "provero"
-version = "0.0.1"
+version = "0.1.0-dev"
 description = "A vendor-neutral, declarative data quality engine"
 license = "Apache-2.0"
 requires-python = ">=3.11"
@@ -84,6 +84,8 @@ provero = "provero.cli.main:app"
 Homepage = "https://github.com/provero-org/provero"
 Repository = "https://github.com/provero-org/provero"
 Issues = "https://github.com/provero-org/provero/issues"
+Documentation = "https://provero.org/docs"
+Changelog = "https://github.com/provero-org/provero/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling>=1.21"]

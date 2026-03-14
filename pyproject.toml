@@ -16,6 +16,8 @@ dev = [
     "hypothesis>=6.100",
     "ruff>=0.4",
     "mypy>=1.10",
+    "types-pyyaml>=6.0",
+    "types-jsonschema>=4.20",
 ]
 
 [tool.uv.workspace]
@@ -46,3 +48,9 @@ select = [
 [tool.pytest.ini_options]
 testpaths = ["provero-core/tests"]
 pythonpath = ["provero-core/src"]
+
+[dependency-groups]
+dev = [
+    "types-pyyaml>=6.0",
+    "types-jsonschema>=4.20",
+]

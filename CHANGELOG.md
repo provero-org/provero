@@ -7,6 +7,19 @@ Each PR should include a news fragment in the `newsfragments/` directory.
 
 <!-- towncrier release notes start -->
 
+0.1.1 (2026-03-16)
+
+# Features
+
+- Add realistic end-to-end tests with dirty data. (#88)
+
+# Bug Fixes
+
+- Fix JSON output containing invalid control characters when checks fail. (#85)
+- Fix contract validation with DuckDB file-based connections. (#86)
+- Fix version command to read from package metadata instead of hardcoded value. (#87)
+
+
 0.1.0 (2026-03-16)
 
 # Features

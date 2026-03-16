@@ -394,11 +394,24 @@ class TestProfile:
 class TestVersionMetadata:
     """Version command should match installed package metadata."""
 
-    @pytest.mark.xfail(reason="Issue #87: version shows hardcoded 0.0.1")
     def test_version_matches_metadata(self, cli_runner):
         """The version command output matches importlib.metadata.version."""
-        expected = importlib.metadata.version("provero")
+        try:
+            expected = importlib.metadata.version("provero")
+        except importlib.metadata.PackageNotFoundError:
+            pytest.skip("provero package metadata not installed in this environment")
+
         result = cli_runner.invoke(app, ["version"])
 
         assert result.exit_code == 0
         assert expected in result.output
+
+    def test_version_not_hardcoded(self, cli_runner):
+        """The version command should not show the old hardcoded 0.0.1."""
+        from provero import __version__
+
+        result = cli_runner.invoke(app, ["version"])
+
+        assert result.exit_code == 0
+        assert __version__ in result.output
+        assert __version__ != "0.0.1"

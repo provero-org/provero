@@ -327,9 +327,6 @@ class TestCLIWithFailures:
 class TestContractViaCLI:
     """Contract validation through the CLI."""
 
-    @pytest.mark.xfail(
-        reason="Issue #86: Contract validation fails with DuckDB file-based connection"
-    )
     def test_contract_validate_duckdb_file(self, cli_runner, dirty_db, tmp_path, monkeypatch):
         """Contract YAML with DuckDB file source runs successfully."""
         monkeypatch.chdir(tmp_path)

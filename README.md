@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/provero-org/provero/actions/workflows/ci.yaml/badge.svg)](https://github.com/provero-org/provero/actions/workflows/ci.yaml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://python.org)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
 [![Contributing](https://img.shields.io/badge/contributing-guide-blue)](CONTRIBUTING.md)
 
 > **provero** (Esperanto): to test, to put to proof.

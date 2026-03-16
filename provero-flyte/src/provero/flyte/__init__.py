@@ -16,3 +16,34 @@
 # under the License.
 
 """Provero Flyte plugin package."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from provero.flyte.deck import ProveroRenderer, publish_provero_deck
+    from provero.flyte.type_transformer import ProveroSuite
+
+
+def __getattr__(name: str):
+    if name == "ProveroRenderer":
+        from provero.flyte.deck import ProveroRenderer
+
+        return ProveroRenderer
+    if name == "publish_provero_deck":
+        from provero.flyte.deck import publish_provero_deck
+
+        return publish_provero_deck
+    if name == "ProveroSuite":
+        from provero.flyte.type_transformer import ProveroSuite
+
+        return ProveroSuite
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+__all__ = [
+    "ProveroRenderer",
+    "ProveroSuite",
+    "publish_provero_deck",
+]

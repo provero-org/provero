@@ -19,6 +19,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+pandas = [
+    "pandas>=1.5",
+]
+polars = [
+    "polars>=0.19",
+]
 dev = [
     "pytest>=8.0",
 ]

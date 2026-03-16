@@ -49,6 +49,7 @@ def provero_check(
             from provero.core.compiler import compile_file
             from provero.core.engine import run_suite
             from provero.core.results import Status
+            from provero.flyte.deck import publish_provero_deck
 
             config = compile_file(Path(config_path))
             for suite_config in config.suites:
@@ -56,6 +57,8 @@ def provero_check(
                     continue
                 connector = create_connector(suite_config.source)
                 suite_result = run_suite(suite_config, connector)
+                publish_provero_deck(suite_result)
+
                 if fail_on_error and suite_result.status == Status.FAIL:
                     failed = [c.check_name for c in suite_result.checks if c.status == Status.FAIL]
                     raise ValueError(f"Quality checks failed: {', '.join(failed)}")

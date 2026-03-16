@@ -21,9 +21,42 @@ Run with:
     pyflyte run examples/flyte_workflow.py quality_pipeline
 """
 
-from flytekit import workflow
+from __future__ import annotations
 
+from typing import Annotated
+
+import pandas as pd
+from flytekit import task, workflow
+
+from provero.core.compiler import CheckConfig
+from provero.flyte import ProveroSuite
 from provero.flyte.task import ProveroCheckConfig, ProveroCheckResult, provero_check_task
+
+# DataFrame type with automatic Provero validation via Annotated
+ValidatedOrders = Annotated[
+    pd.DataFrame,
+    ProveroSuite(
+        name="orders_validation",
+        checks=[
+            CheckConfig(check_type="not_null", column="order_id"),
+            CheckConfig(check_type="not_null", column="amount"),
+            CheckConfig(check_type="positive", column="amount"),
+        ],
+        on_error="raise",
+    ),
+]
+
+
+@task
+def load_orders() -> ValidatedOrders:
+    """Load orders data. Provero validates the output automatically."""
+    return pd.DataFrame(
+        {
+            "order_id": [1, 2, 3],
+            "amount": [10.0, 25.5, 7.99],
+            "customer": ["alice", "bob", "charlie"],
+        }
+    )
 
 
 @workflow

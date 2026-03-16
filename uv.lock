@@ -3981,14 +3981,22 @@ dependencies = [
 dev = [
     { name = "pytest" },
 ]
+pandas = [
+    { name = "pandas" },
+]
+polars = [
+    { name = "polars" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "flytekit", specifier = ">=1.11" },
+    { name = "pandas", marker = "extra == 'pandas'", specifier = ">=1.5" },
+    { name = "polars", marker = "extra == 'polars'", specifier = ">=0.19" },
     { name = "provero", editable = "provero-core" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["pandas", "polars", "dev"]
 
 [[package]]
 name = "psutil"

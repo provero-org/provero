@@ -73,6 +73,7 @@ def provero_check_task(config: ProveroCheckConfig) -> list[ProveroCheckResult]:
     from provero.core.compiler import compile_file
     from provero.core.engine import run_suite
     from provero.core.results import Status
+    from provero.flyte.deck import publish_provero_deck
     from provero.store.sqlite import SQLiteStore
 
     compiled = compile_file(Path(config.config_path))
@@ -87,6 +88,7 @@ def provero_check_task(config: ProveroCheckConfig) -> list[ProveroCheckResult]:
             connector = create_connector(suite_config.source)
             suite_result = run_suite(suite_config, connector, optimize=config.optimize)
             store.save_result(suite_result)
+            publish_provero_deck(suite_result)
 
             failed_checks = [c.check_name for c in suite_result.checks if c.status == Status.FAIL]
 

@@ -19,8 +19,11 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 try:
     from flytekit import task
@@ -77,7 +80,13 @@ def provero_check_task(config: ProveroCheckConfig) -> list[ProveroCheckResult]:
     from provero.store.sqlite import SQLiteStore
 
     compiled = compile_file(Path(config.config_path))
-    store = SQLiteStore()
+
+    try:
+        store: SQLiteStore | None = SQLiteStore()
+    except Exception:
+        logger.warning("Could not create SQLiteStore, results will not be persisted")
+        store = None
+
     results: list[ProveroCheckResult] = []
 
     try:
@@ -87,7 +96,8 @@ def provero_check_task(config: ProveroCheckConfig) -> list[ProveroCheckResult]:
 
             connector = create_connector(suite_config.source)
             suite_result = run_suite(suite_config, connector, optimize=config.optimize)
-            store.save_result(suite_result)
+            if store is not None:
+                store.save_result(suite_result)
             publish_provero_deck(suite_result)
 
             failed_checks = [c.check_name for c in suite_result.checks if c.status == Status.FAIL]
@@ -115,6 +125,7 @@ def provero_check_task(config: ProveroCheckConfig) -> list[ProveroCheckResult]:
                 )
                 raise ValueError(msg)
     finally:
-        store.close()
+        if store is not None:
+            store.close()
 
     return results

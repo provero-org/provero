@@ -44,7 +44,7 @@ from __future__ import annotations
 import logging
 import warnings
 from dataclasses import dataclass, field
-from typing import Any, get_args, get_origin
+from typing import Any, Literal, get_args, get_origin
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ class ProveroSuite:
     checks: list[Any] = field(default_factory=list)  # list[CheckConfig]
     config_path: str | None = None
     suite: str | None = None
-    on_error: str = "raise"  # "raise" or "warn"
+    on_error: Literal["raise", "warn"] = "raise"
 
 
 def _extract_provero_suite(python_type: type) -> ProveroSuite | None:
@@ -141,7 +141,7 @@ def _register_transformer() -> None:
         import pandas as pd
         from flytekit import FlyteContext
         from flytekit.core.type_engine import TypeEngine, TypeTransformer
-        from flytekit.models.literals import Literal
+        from flytekit.models.literals import Literal as FlyteLiteral
         from flytekit.models.types import LiteralType
     except ImportError:
         return
@@ -162,7 +162,7 @@ def _register_transformer() -> None:
             python_val: pd.DataFrame,
             python_type: type,
             expected: LiteralType,
-        ) -> Literal:
+        ) -> FlyteLiteral:
             suite_meta = _extract_provero_suite(python_type)
             if suite_meta is not None:
                 _validate_dataframe(python_val, suite_meta)
@@ -201,7 +201,7 @@ def _register_transformer() -> None:
                 python_val: pl.DataFrame,
                 python_type: type,
                 expected: LiteralType,
-            ) -> Literal:
+            ) -> FlyteLiteral:
                 suite_meta = _extract_provero_suite(python_type)
                 if suite_meta is not None:
                     _validate_dataframe(python_val, suite_meta)
@@ -233,6 +233,10 @@ def _safe_register(type_engine: type, transformer: Any, python_type: type) -> No
             type_engine.register(transformer)
         except ValueError:
             # Already registered for this type, override directly
+            logger.warning(
+                "Using internal flytekit _REGISTRY API for transformer registration, "
+                "this may break in future versions"
+            )
             type_engine._REGISTRY[python_type] = transformer
 
 

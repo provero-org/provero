@@ -5,5 +5,4 @@ used by the engine.
 
 ::: provero.core.compiler
     options:
-      show_source: false
       members_order: source

@@ -6,12 +6,10 @@ Alert routing and delivery for check failures.
 
 ::: provero.alerts.models
     options:
-      show_source: false
       members_order: source
 
 ## Sender
 
 ::: provero.alerts.sender
     options:
-      show_source: false
       members_order: source

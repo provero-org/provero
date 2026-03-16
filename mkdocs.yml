@@ -71,6 +71,8 @@ nav:
   - API Reference:
       - api/index.md
       - Engine: api/engine.md
+      - Optimizer: api/optimizer.md
+      - SQL Utilities: api/sql.md
       - Checks: api/checks.md
       - Connectors: api/connectors.md
       - Compiler: api/compiler.md
@@ -79,6 +81,7 @@ nav:
       - Anomaly Detection: api/anomaly.md
       - Store: api/store.md
       - Profiler: api/profiler.md
+      - Reporting: api/reporting.md
       - Alerts: api/alerts.md
   - Architecture: ARCHITECTURE.md
   - Release Process: RELEASE_PROCESS.md

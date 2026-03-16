@@ -5,5 +5,4 @@ connected data sources and collecting results.
 
 ::: provero.core.engine
     options:
-      show_source: false
       members_order: source

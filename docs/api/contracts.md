@@ -7,19 +7,16 @@ data sources over time.
 
 ::: provero.contracts.models
     options:
-      show_source: false
       members_order: source
 
 ## Validator
 
 ::: provero.contracts.validator
     options:
-      show_source: false
       members_order: source
 
 ## Diff
 
 ::: provero.contracts.diff
     options:
-      show_source: false
       members_order: source

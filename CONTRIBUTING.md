@@ -137,4 +137,4 @@ This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.
 
 - [GitHub Discussions](https://github.com/provero-org/provero/discussions) for questions and ideas
 - [GitHub Issues](https://github.com/provero-org/provero/issues) for bug reports and feature requests
-- [Slack](https://provero.slack.com) for real-time chat
+- [Slack](https://join.slack.com/t/provero/shared_invite/zt-3sj71s3ic-ey5Gf~Ls_YcmdMKkDz9oAQ) for real-time chat

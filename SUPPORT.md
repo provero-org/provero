@@ -4,7 +4,7 @@
 
 - **Questions and ideas**: [GitHub Discussions](https://github.com/provero-org/provero/discussions)
 - **Bug reports**: [GitHub Issues](https://github.com/provero-org/provero/issues)
-- **Real-time chat**: [Slack](https://provero.slack.com)
+- **Real-time chat**: [Slack](https://join.slack.com/t/provero/shared_invite/zt-3sj71s3ic-ey5Gf~Ls_YcmdMKkDz9oAQ)
 - **Security issues**: see [SECURITY.md](SECURITY.md)
 
 ## Before opening an issue

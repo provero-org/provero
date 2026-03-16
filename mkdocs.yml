@@ -67,6 +67,11 @@ nav:
   - Configuration: configuration.md
   - Check Types: checks.md
   - Connectors: connectors.md
+  - Anomaly Detection: anomaly-detection.md
+  - Data Contracts: data-contracts.md
+  - Integrations:
+    - Airflow: airflow.md
+    - Flyte: flyte.md
   - CLI Reference: cli.md
   - API Reference:
       - api/index.md

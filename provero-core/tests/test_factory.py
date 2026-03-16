@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 import os
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -74,6 +74,20 @@ class TestCreateConnector:
         source = SourceConfig(type="clickhouse")
         with pytest.raises(ValueError, match="pip install provero-connector-clickhouse"):
             create_connector(source)
+
+    def test_missing_dep_shows_install_extra(self):
+        """When a known connector's package is missing, suggest pip install provero[extra]."""
+        with patch("importlib.import_module", side_effect=ImportError("No module")):
+            source = SourceConfig(type="postgres", connection="postgresql://localhost/db")
+            with pytest.raises(ImportError, match=r"pip install provero\[postgres\]"):
+                create_connector(source)
+
+    def test_missing_dep_without_extra(self):
+        """When a connector has no known extra, still raise ImportError."""
+        with patch("importlib.import_module", side_effect=ImportError("No module")):
+            source = SourceConfig(type="sqlite", connection="sqlite:///test.db")
+            with pytest.raises(ImportError, match="requires additional dependencies"):
+                create_connector(source)
 
 
 class TestPluginDiscovery:

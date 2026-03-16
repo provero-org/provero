@@ -46,6 +46,15 @@ _BUILTINS: dict[str, tuple[str, str]] = {
     "databricks": ("provero.connectors.postgres", "SQLAlchemyConnector"),
 }
 
+# Maps connector types to their pip extras for helpful error messages
+_INSTALL_EXTRAS: dict[str, str] = {
+    "postgres": "postgres",
+    "postgresql": "postgres",
+    "snowflake": "snowflake",
+    "bigquery": "bigquery",
+    "redshift": "redshift",
+}
+
 _PLUGIN_REGISTRY: dict[str, Any] = {}
 _PLUGINS_LOADED = False
 
@@ -67,7 +76,21 @@ def _load_builtin(source_type: str) -> Any:
     module_path, class_name = _BUILTINS[source_type]
     import importlib
 
-    mod = importlib.import_module(module_path)
+    try:
+        mod = importlib.import_module(module_path)
+    except ImportError:
+        extra = _INSTALL_EXTRAS.get(source_type)
+        if extra:
+            msg = (
+                f"Connector '{source_type}' requires additional dependencies.\n"
+                f"Install with: pip install provero[{extra}]"
+            )
+        else:
+            msg = (
+                f"Connector '{source_type}' requires additional dependencies "
+                f"that are not installed."
+            )
+        raise ImportError(msg) from None
     return getattr(mod, class_name)
 
 

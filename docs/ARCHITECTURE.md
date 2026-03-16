@@ -7,7 +7,7 @@ Works standalone, as an Airflow provider, or with any orchestrator.
 Successor espiritual do Apache Griffin, aprendendo com seus erros.
 
 > **Note:** This document describes the target architecture, including planned features
-> not yet implemented. For currently available features, see the [README](../README.md).
+> not yet implemented. For currently available features, see the [README](https://github.com/provero-org/provero/blob/main/README.md).
 > Unimplemented components include: server mode (FastAPI), streaming engine (Kafka),
 > dedicated cloud connectors (Snowflake, BigQuery, Redshift), email alerts, watch mode,
 > and Prophet-based anomaly detection.

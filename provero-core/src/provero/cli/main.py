@@ -19,6 +19,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 from pathlib import Path
 from typing import Annotated
 
@@ -137,7 +139,7 @@ def run(
     ] = None,
     output_format: Annotated[
         str,
-        typer.Option("--format", "-f", help="Output format: table, json"),
+        typer.Option("--format", "-f", help="Output format: table, json, csv"),
     ] = "table",
     no_store: Annotated[
         bool,
@@ -177,6 +179,7 @@ def run(
     exit_code = 0
     all_results = []
     contract_results = []
+    csv_header_written = False
 
     for suite_config in provero_config.suites:
         if suite and suite_config.name != suite:
@@ -194,6 +197,9 @@ def run(
 
         if output_format == "json":
             console.print(result.model_dump_json(indent=2))
+        elif output_format == "csv":
+            _print_csv(result, include_header=not csv_header_written)
+            csv_header_written = True
         else:
             _print_table(result)
 
@@ -506,6 +512,40 @@ def _print_table(result) -> None:
         if check.status == Status.FAIL and check.failing_rows_query:
             console.print(f"\n[red]FAILED:[/red] {check.check_name}")
             console.print(f"  Query: {check.failing_rows_query}")
+
+
+def _print_csv(result, include_header: bool = True) -> None:
+    """Print suite results as CSV."""
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    if include_header:
+        writer.writerow(
+            [
+                "suite_name",
+                "check_type",
+                "column",
+                "status",
+                "severity",
+                "observed_value",
+                "expected_value",
+            ]
+        )
+
+    for check in result.checks:
+        writer.writerow(
+            [
+                result.suite_name,
+                check.check_type,
+                check.column or "",
+                str(check.status),
+                str(check.severity),
+                str(check.observed_value) if check.observed_value is not None else "",
+                str(check.expected_value) if check.expected_value is not None else "",
+            ]
+        )
+
+    typer.echo(output.getvalue(), nl=False)
 
 
 @app.command()

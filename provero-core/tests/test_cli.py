@@ -19,11 +19,14 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import textwrap
 
 from provero import __version__
-from provero.cli.main import app
+from provero.cli.main import _print_csv, app
+from provero.core.results import CheckResult, Severity, Status, SuiteResult
 
 
 class TestVersion:
@@ -99,6 +102,99 @@ class TestRun:
         end = output.rindex("}") + 1
         parsed = json.loads(output[start:end])
         assert "suite_name" in parsed
+
+    def test_csv_format(self, cli_runner, duckdb_config_file, monkeypatch, tmp_path):
+        monkeypatch.chdir(tmp_path)
+        config_path = str(duckdb_config_file["config_path"])
+        result = cli_runner.invoke(
+            app, ["run", "--config", config_path, "--format", "csv", "--no-store"]
+        )
+        assert result.exit_code == 0
+
+        rows = list(csv.DictReader(io.StringIO(result.output)))
+        assert len(rows) > 0
+        assert list(rows[0].keys()) == [
+            "suite_name",
+            "check_type",
+            "column",
+            "status",
+            "severity",
+            "observed_value",
+            "expected_value",
+        ]
+        assert rows[0]["suite_name"]
+        assert rows[0]["check_type"]
+        assert rows[0]["status"]
+        assert rows[0]["severity"]
+
+    def test_csv_format_none_values_render_empty(self, capsys):
+        result = SuiteResult(
+            suite_name="suite_a",
+            status=Status.PASS,
+            checks=[
+                CheckResult(
+                    check_name="custom_sql_check",
+                    check_type="custom_sql",
+                    status=Status.PASS,
+                    severity=Severity.CRITICAL,
+                    column=None,
+                    observed_value=None,
+                    expected_value=None,
+                )
+            ],
+        )
+
+        _print_csv(result, include_header=True)
+        output = capsys.readouterr().out
+        rows = list(csv.DictReader(io.StringIO(output)))
+
+        assert len(rows) == 1
+        assert rows[0]["suite_name"] == "suite_a"
+        assert rows[0]["column"] == ""
+        assert rows[0]["observed_value"] == ""
+        assert rows[0]["expected_value"] == ""
+
+    def test_csv_format_multi_suite_writes_header_once(
+        self, cli_runner, duckdb_file, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        config = tmp_path / "multi_suite.yaml"
+        config.write_text(
+            textwrap.dedent(f"""\
+            version: "1.0"
+            sources:
+              warehouse:
+                type: duckdb
+                connection: "{duckdb_file}"
+
+            suites:
+              - name: orders_suite
+                source: warehouse
+                table: orders
+                checks:
+                  - not_null: order_id
+
+              - name: events_suite
+                source: warehouse
+                table: events
+                checks:
+                  - not_null: event_id
+        """)
+        )
+
+        result = cli_runner.invoke(
+            app, ["run", "--config", str(config), "--format", "csv", "--no-store"]
+        )
+        assert result.exit_code == 0
+
+        header = "suite_name,check_type,column,status,severity,observed_value,expected_value"
+        assert result.output.count(header) == 1
+
+        rows = list(csv.DictReader(io.StringIO(result.output)))
+        assert len(rows) >= 2
+        suite_names = {row["suite_name"] for row in rows}
+        assert "orders_suite" in suite_names
+        assert "events_suite" in suite_names
 
     def test_html_report(self, cli_runner, duckdb_config_file, monkeypatch, tmp_path):
         monkeypatch.chdir(tmp_path)

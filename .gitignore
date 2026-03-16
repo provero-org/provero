@@ -38,8 +38,5 @@ Thumbs.db
 # Claude Code (local config)
 .claude/
 
-# Docs
-site/
-
 # Data directories
 .provero/

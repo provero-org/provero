@@ -293,18 +293,13 @@ check_orders = ProveroCheckOperator(
 
 ## Documentation
 
-**[Full documentation](https://provero-org.github.io/provero/)** is available on GitHub Pages.
-
-- [Getting Started](https://provero-org.github.io/provero/getting-started/)
-- [Configuration](https://provero-org.github.io/provero/configuration/)
-- [Check Types](https://provero-org.github.io/provero/checks/)
-- [Connectors](https://provero-org.github.io/provero/connectors/)
-- [CLI Reference](https://provero-org.github.io/provero/cli/)
+- [AQL Specification](aql-spec/spec.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Contributing](CONTRIBUTING.md)
 - [Governance](GOVERNANCE.md)
 - [Security Policy](SECURITY.md)
 - [Support](SUPPORT.md)
+- [Development Plan](DEVELOPMENT_PLAN.md)
 
 ## License
 

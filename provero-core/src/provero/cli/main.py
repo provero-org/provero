@@ -311,7 +311,7 @@ def run(
             # table format is suppressed entirely in quiet mode.
         else:
             if output_format == "json":
-                console.print(result.model_dump_json(indent=2))
+                typer.echo(result.model_dump_json(indent=2))
             elif output_format == "csv":
                 _print_csv(result, include_header=not csv_header_written)
                 csv_header_written = True
@@ -669,9 +669,18 @@ def _resolve_contract_source(contract, provero_config):
         source = provero_config.sources[source_ref]
         return source.model_copy(update={"table": contract.table}) if contract.table else source
 
-    source_type = source_ref or (
-        provero_config.suites[0].source.type if provero_config.suites else "duckdb"
-    )
+    # Fall back to the first suite's full source config (preserves connection
+    # strings for file-based backends like DuckDB).
+    if provero_config.suites:
+        base = provero_config.suites[0].source
+        updates: dict = {}
+        if contract.table:
+            updates["table"] = contract.table
+        if source_ref:
+            updates["type"] = source_ref
+        return base.model_copy(update=updates) if updates else base
+
+    source_type = source_ref or "duckdb"
     return SourceConfig(type=source_type, table=contract.table)
 
 

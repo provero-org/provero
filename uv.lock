@@ -4035,7 +4035,7 @@ wheels = [
 
 [[package]]
 name = "provero"
-version = "0.1.0.dev0"
+version = "0.1.0"
 source = { editable = "provero-core" }
 dependencies = [
     { name = "duckdb" },
@@ -4136,7 +4136,7 @@ provides-extras = ["dataframe", "polars", "postgres", "snowflake", "bigquery", "
 
 [[package]]
 name = "provero-airflow"
-version = "0.1.0.dev0"
+version = "0.1.0"
 source = { editable = "provero-airflow" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4160,7 +4160,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provero-flyte"
-version = "0.1.0.dev0"
+version = "0.1.0"
 source = { editable = "provero-flyte" }
 dependencies = [
     { name = "flytekit" },

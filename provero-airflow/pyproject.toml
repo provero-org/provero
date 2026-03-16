@@ -1,6 +1,6 @@
 [project]
 name = "provero-airflow"
-version = "0.1.0-dev"
+version = "0.1.0"
 description = "Provero Airflow provider: ProveroCheckOperator and decorators"
 license = "Apache-2.0"
 requires-python = ">=3.11"

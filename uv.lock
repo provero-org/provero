@@ -3040,6 +3040,7 @@ source = { editable = "provero-airflow" }
 dependencies = [
     { name = "apache-airflow" },
     { name = "provero" },
+    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -3052,6 +3053,7 @@ requires-dist = [
     { name = "apache-airflow", specifier = ">=2.9" },
     { name = "provero", editable = "provero-core" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
 ]
 provides-extras = ["dev"]
 

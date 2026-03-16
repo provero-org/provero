@@ -15,18 +15,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Provero Airflow provider package."""
+---
+package-name: provero-airflow
+name: Provero
+description: |
+  Data quality checks for Apache Airflow using Provero.
 
-from __future__ import annotations
+  `Provero <https://provero.org>`__
 
-from pathlib import Path
-from typing import Any
+versions:
+  - 0.1.0-dev
 
-import yaml
+dependencies:
+  - apache-airflow>=2.9
 
-
-def get_provider_info() -> dict[str, Any]:
-    """Return provider metadata for Airflow's provider manager."""
-    provider_yaml = Path(__file__).parent / "provider.yaml"
-    with open(provider_yaml, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+operators:
+  - integration-name: Provero
+    python-modules:
+      - provero.airflow.operators

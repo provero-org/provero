@@ -59,7 +59,7 @@ Each release branch has constraint files in `constraints/` that pin exact depend
 
 ## News Fragments
 
-Every PR must include a news fragment in `newsfragments/`. See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
+Every PR must include a news fragment in `newsfragments/`. See [CONTRIBUTING.md](https://github.com/provero-org/provero/blob/main/CONTRIBUTING.md) for details.
 
 ## PyPI Publishing
 

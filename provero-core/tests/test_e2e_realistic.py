@@ -277,9 +277,6 @@ class TestCLIWithFailures:
         assert result.exit_code == 1, f"Expected exit_code 1, got {result.exit_code}"
         assert "FAIL" in result.output
 
-    @pytest.mark.xfail(
-        reason="Issue #85: JSON contains invalid control characters when checks fail"
-    )
     def test_json_output_with_failures(self, cli_runner, dirty_db, tmp_path, monkeypatch):
         """JSON output with failing checks should be valid JSON."""
         monkeypatch.chdir(tmp_path)

@@ -15,12 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Provero CLI."""
+"""Provero CLI.
+
+Entry point for all ``provero`` commands.  The module exposes a Typer
+application (``app``) that is registered as a console script via
+``pyproject.toml``.
+"""
 
 from __future__ import annotations
 
 import csv
 import io
+import json as json_mod
 from pathlib import Path
 from typing import Annotated
 
@@ -32,10 +38,25 @@ from provero import __version__
 
 app = typer.Typer(
     name="provero",
-    help="Provero - Data quality checks made simple.",
+    help=(
+        "Provero - Data quality checks made simple.\n\n"
+        "Declarative, vendor-neutral data quality engine. Define checks in a "
+        "YAML file and run them against any SQL data source.\n\n"
+        "Quick start:\n\n"
+        "  provero init            Create a starter provero.yaml\n\n"
+        "  provero run             Execute quality checks\n\n"
+        "  provero validate        Validate config without running checks\n\n"
+        "  provero profile         Profile a data source\n\n"
+        "  provero history         View past check results\n\n"
+        "  provero contract        Manage data contracts"
+    ),
     no_args_is_help=True,
+    rich_markup_mode="rich",
 )
 console = Console()
+
+# Module-level quiet flag toggled by the top-level callback.
+_quiet: bool = False
 
 TEMPLATE = """\
 # provero.yaml - Provero configuration
@@ -55,14 +76,37 @@ checks:
 """
 
 
+def _echo(msg: str, **kwargs) -> None:
+    """Print *msg* via the shared console, unless quiet mode is active."""
+    if not _quiet:
+        console.print(msg, **kwargs)
+
+
 @app.callback()
-def main() -> None:
+def main(
+    quiet: Annotated[
+        bool,
+        typer.Option(
+            "--quiet",
+            "-q",
+            help=("Suppress non-essential output. Only final results and exit codes are emitted."),
+        ),
+    ] = False,
+) -> None:
     """Provero - Data quality checks made simple."""
+    global _quiet
+    _quiet = quiet
 
 
 @app.command()
 def version() -> None:
-    """Show version."""
+    """Print the installed Provero version.
+
+    Example:
+
+        provero version
+    """
+    # Always print, even in quiet mode, since this is the whole point.
     console.print(f"provero {__version__}")
 
 
@@ -70,20 +114,33 @@ def version() -> None:
 def init(
     path: Annotated[
         Path,
-        typer.Argument(help="Path for the config file"),
+        typer.Argument(
+            help=("Destination path for the generated config file. Defaults to provero.yaml."),
+        ),
     ] = Path("provero.yaml"),
     from_source: Annotated[
         str | None,
         typer.Option(
             "--from-source",
-            help="Generate checks by profiling a table (e.g. duckdb:my_table)",
+            help=(
+                "Auto-generate checks by profiling a live data source. "
+                "Format: TYPE:TABLE (e.g. duckdb:orders, postgres:users)."
+            ),
         ),
     ] = None,
 ) -> None:
-    """Create a new provero.yaml template.
+    """Create a new provero.yaml configuration file.
 
-    Use --from-source to auto-generate checks by profiling a live data source.
-    Format: --from-source TYPE:TABLE (e.g. duckdb:orders, postgres:users)
+    Generates a starter template you can customise. Use --from-source to
+    profile a live table and pre-populate checks automatically.
+
+    Examples:
+
+        provero init
+
+        provero init my_checks.yaml
+
+        provero init --from-source duckdb:orders
     """
     if path.exists():
         console.print(f"[yellow]File already exists: {path}[/yellow]")
@@ -99,7 +156,11 @@ def init(
 
         from provero.connectors.factory import create_connector
         from provero.core.compiler import SourceConfig
-        from provero.core.profiler import checks_to_yaml, profile_table, suggest_checks
+        from provero.core.profiler import (
+            checks_to_yaml,
+            profile_table,
+            suggest_checks,
+        )
 
         source = SourceConfig(type=source_type, table=table_name)
         connector = create_connector(source)
@@ -112,53 +173,98 @@ def init(
         checks = suggest_checks(profile)
         yaml_content = checks_to_yaml(checks, source_type, table_name)
         path.write_text(yaml_content)
-        console.print(
+        _echo(
             f"[green]Created {path} with {len(checks)} suggested checks"
             f" from profiling {table_name}[/green]"
         )
-        console.print("Review the file and run: provero run")
+        _echo("Review the file and run: provero run")
     else:
         path.write_text(TEMPLATE)
-        console.print(f"[green]Created {path}[/green]")
-        console.print("Edit the file and run: provero run")
+        _echo(f"[green]Created {path}[/green]")
+        _echo("Edit the file and run: provero run")
 
 
 @app.command()
 def run(
     config: Annotated[
         Path,
-        typer.Option("--config", "-c", help="Config file path"),
+        typer.Option(
+            "--config",
+            "-c",
+            help=("Path to the Provero YAML configuration file. Defaults to provero.yaml."),
+        ),
     ] = Path("provero.yaml"),
     suite: Annotated[
         str | None,
-        typer.Option("--suite", "-s", help="Run specific suite"),
+        typer.Option(
+            "--suite",
+            "-s",
+            help="Run only the suite with this name (skip all others).",
+        ),
     ] = None,
     tag: Annotated[
         str | None,
-        typer.Option("--tag", "-t", help="Run suites with this tag"),
+        typer.Option(
+            "--tag",
+            "-t",
+            help="Run only suites tagged with this value.",
+        ),
     ] = None,
     output_format: Annotated[
         str,
-        typer.Option("--format", "-f", help="Output format: table, json, csv"),
+        typer.Option(
+            "--format",
+            "-f",
+            help="Output format for check results. One of: table, json, csv.",
+        ),
     ] = "table",
     no_store: Annotated[
         bool,
-        typer.Option("--no-store", help="Don't persist results"),
+        typer.Option(
+            "--no-store",
+            help="Skip persisting results to the local store.",
+        ),
     ] = False,
     no_optimize: Annotated[
         bool,
-        typer.Option("--no-optimize", help="Disable SQL batching"),
+        typer.Option(
+            "--no-optimize",
+            help="Disable SQL query batching (run each check individually).",
+        ),
     ] = False,
     no_alerts: Annotated[
         bool,
-        typer.Option("--no-alerts", help="Don't send alerts"),
+        typer.Option(
+            "--no-alerts",
+            help="Do not send alert notifications, even if configured.",
+        ),
     ] = False,
     report: Annotated[
         str | None,
-        typer.Option("--report", help="Generate report: html"),
+        typer.Option(
+            "--report",
+            help="Generate a report after the run. Supported values: html.",
+        ),
     ] = None,
 ) -> None:
-    """Run quality checks."""
+    """Execute data quality checks defined in a Provero config file.
+
+    Reads the YAML configuration, connects to each data source, runs every
+    check, and prints the results. Returns exit code 1 when any check fails
+    or errors.
+
+    Examples:
+
+        provero run
+
+        provero run -c my_checks.yaml --format json --no-store
+
+        provero run --suite orders_suite --tag nightly
+
+        provero run --report html
+
+        provero run --quiet --format json
+    """
     if not config.exists():
         console.print(f"[red]Config file not found: {config}[/red]")
         console.print("Run 'provero init' to create one.")
@@ -195,13 +301,22 @@ def run(
 
         all_results.append(result)
 
-        if output_format == "json":
-            console.print(result.model_dump_json(indent=2))
-        elif output_format == "csv":
-            _print_csv(result, include_header=not csv_header_written)
-            csv_header_written = True
+        if _quiet:
+            # In quiet mode only emit structured formats (json/csv).
+            if output_format == "json":
+                typer.echo(result.model_dump_json(indent=2))
+            elif output_format == "csv":
+                _print_csv(result, include_header=not csv_header_written)
+                csv_header_written = True
+            # table format is suppressed entirely in quiet mode.
         else:
-            _print_table(result)
+            if output_format == "json":
+                console.print(result.model_dump_json(indent=2))
+            elif output_format == "csv":
+                _print_csv(result, include_header=not csv_header_written)
+                csv_header_written = True
+            else:
+                _print_table(result)
 
         if result.failed > 0 or result.errored > 0:
             exit_code = 1
@@ -218,14 +333,14 @@ def run(
 
             if cr.status == "fail":
                 exit_code = 1
-                console.print(f"\n[red]Contract '{cr.contract_name}' FAILED[/red]")
+                _echo(f"\n[red]Contract '{cr.contract_name}' FAILED[/red]")
             elif cr.status == "warn":
-                console.print(f"\n[yellow]Contract '{cr.contract_name}' has warnings[/yellow]")
+                _echo(f"\n[yellow]Contract '{cr.contract_name}' has warnings[/yellow]")
             else:
-                console.print(f"\n[green]Contract '{cr.contract_name}' PASSED[/green]")
+                _echo(f"\n[green]Contract '{cr.contract_name}' PASSED[/green]")
 
             for v in cr.violations:
-                console.print(f"  [{v.severity}] {v.rule}: {v.message}")
+                _echo(f"  [{v.severity}] {v.rule}: {v.message}")
 
     # Send alerts if configured
     if not no_alerts and provero_config.alerts:
@@ -235,13 +350,12 @@ def run(
             outcomes = send_alerts(provero_config.alerts, result)
             for alert_cfg, ok in zip(provero_config.alerts, outcomes, strict=True):
                 if ok:
-                    console.print(f"[green]Alert sent to {alert_cfg.url}[/green]")
+                    _echo(f"[green]Alert sent to {alert_cfg.url}[/green]")
                 elif ok is False and result.failed > 0:
-                    # Only warn about delivery failure if the alert should have fired
                     from provero.alerts.sender import _should_fire
 
                     if _should_fire(alert_cfg, result):
-                        console.print(f"[yellow]Alert delivery failed: {alert_cfg.url}[/yellow]")
+                        _echo(f"[yellow]Alert delivery failed: {alert_cfg.url}[/yellow]")
 
     # Generate HTML report if requested
     if report == "html" and all_results:
@@ -254,7 +368,7 @@ def run(
                 contract_results=contract_results or None,
                 output_path=report_path,
             )
-            console.print(f"\n[green]HTML report: {report_path}[/green]")
+            _echo(f"\n[green]HTML report: {report_path}[/green]")
 
     if store:
         store.close()
@@ -264,7 +378,15 @@ def run(
 
 
 # Contract subcommand
-contract_app = typer.Typer(name="contract", help="Data contract commands.", no_args_is_help=True)
+contract_app = typer.Typer(
+    name="contract",
+    help=(
+        "Data contract commands.\n\n"
+        "Validate schemas and freshness rules against live data sources, "
+        "or compare two versions of a contract to detect breaking changes."
+    ),
+    no_args_is_help=True,
+)
 app.add_typer(contract_app, name="contract")
 
 
@@ -272,10 +394,25 @@ app.add_typer(contract_app, name="contract")
 def contract_validate(
     config: Annotated[
         Path,
-        typer.Option("--config", "-c", help="Config file path"),
+        typer.Option(
+            "--config",
+            "-c",
+            help=("Path to the Provero YAML configuration file containing contracts."),
+        ),
     ] = Path("provero.yaml"),
 ) -> None:
-    """Validate data contracts against live sources."""
+    """Validate data contracts against live data sources.
+
+    Connects to each source referenced by a contract and verifies that
+    the actual schema matches the declared one. Reports drift and
+    violations.
+
+    Examples:
+
+        provero contract validate
+
+        provero contract validate -c production.yaml
+    """
     if not config.exists():
         console.print(f"[red]Config file not found: {config}[/red]")
         raise typer.Exit(1)
@@ -287,7 +424,7 @@ def contract_validate(
     provero_config = compile_file(config)
 
     if not provero_config.contracts:
-        console.print("[yellow]No contracts defined in config.[/yellow]")
+        _echo("[yellow]No contracts defined in config.[/yellow]")
         return
 
     exit_code = 0
@@ -299,23 +436,41 @@ def contract_validate(
         if result.status == "fail":
             exit_code = 1
 
-        status_style = {"pass": "green", "fail": "red", "warn": "yellow"}.get(result.status, "dim")
-        console.print(
-            f"\n[{status_style}]{result.contract_name}: {result.status.upper()}[/{status_style}]"
-        )
+        if _quiet:
+            # Minimal structured output in quiet mode.
+            typer.echo(
+                json_mod.dumps(
+                    {
+                        "contract": result.contract_name,
+                        "status": result.status,
+                        "violations": len(result.violations),
+                        "drift": len(result.schema_drift),
+                    }
+                )
+            )
+        else:
+            status_style = {
+                "pass": "green",
+                "fail": "red",
+                "warn": "yellow",
+            }.get(result.status, "dim")
+            console.print(
+                f"\n[{status_style}]{result.contract_name}: "
+                f"{result.status.upper()}[/{status_style}]"
+            )
 
-        if result.schema_drift:
-            drift_table = Table(title="Schema Drift")
-            drift_table.add_column("Column")
-            drift_table.add_column("Change")
-            drift_table.add_column("Expected")
-            drift_table.add_column("Actual")
-            for d in result.schema_drift:
-                drift_table.add_row(d.column, d.change_type, d.expected, d.actual)
-            console.print(drift_table)
+            if result.schema_drift:
+                drift_table = Table(title="Schema Drift")
+                drift_table.add_column("Column")
+                drift_table.add_column("Change")
+                drift_table.add_column("Expected")
+                drift_table.add_column("Actual")
+                for d in result.schema_drift:
+                    drift_table.add_row(d.column, d.change_type, d.expected, d.actual)
+                console.print(drift_table)
 
-        for v in result.violations:
-            console.print(f"  [{v.severity}] {v.rule}: {v.message}")
+            for v in result.violations:
+                console.print(f"  [{v.severity}] {v.rule}: {v.message}")
 
     if exit_code:
         raise typer.Exit(exit_code)
@@ -325,14 +480,27 @@ def contract_validate(
 def contract_diff(
     old_config: Annotated[
         Path,
-        typer.Argument(help="Old config file"),
+        typer.Argument(
+            help="Path to the older version of the config file.",
+        ),
     ],
     new_config: Annotated[
         Path,
-        typer.Argument(help="New config file"),
+        typer.Argument(
+            help="Path to the newer version of the config file.",
+        ),
     ],
 ) -> None:
-    """Show differences between two contract versions."""
+    """Show differences between two contract versions.
+
+    Compares the contracts defined in OLD_CONFIG against NEW_CONFIG and
+    highlights added, removed, or changed fields. Breaking changes are
+    flagged explicitly.
+
+    Examples:
+
+        provero contract diff v1.yaml v2.yaml
+    """
     from provero.contracts.diff import diff_contracts
     from provero.core.compiler import compile_file
 
@@ -350,18 +518,18 @@ def contract_diff(
 
     for name in sorted(all_names):
         if name not in old_map:
-            console.print(f"\n[green]+ Contract '{name}' added[/green]")
+            _echo(f"\n[green]+ Contract '{name}' added[/green]")
             continue
         if name not in new_map:
-            console.print(f"\n[red]- Contract '{name}' removed[/red]")
+            _echo(f"\n[red]- Contract '{name}' removed[/red]")
             continue
 
         changes = diff_contracts(old_map[name], new_map[name])
         if not changes:
-            console.print(f"\n[dim]Contract '{name}': no changes[/dim]")
+            _echo(f"\n[dim]Contract '{name}': no changes[/dim]")
             continue
 
-        console.print(f"\n[bold]Contract '{name}':[/bold]")
+        _echo(f"\n[bold]Contract '{name}':[/bold]")
         table = Table()
         table.add_column("Field")
         table.add_column("Change")
@@ -370,26 +538,57 @@ def contract_diff(
         table.add_column("Breaking")
         for c in changes:
             breaking = "[red]YES[/red]" if c.is_breaking else "[green]no[/green]"
-            table.add_row(c.field, c.change_type, c.old_value, c.new_value, breaking)
-        console.print(table)
+            table.add_row(
+                c.field,
+                c.change_type,
+                c.old_value,
+                c.new_value,
+                breaking,
+            )
+        if not _quiet:
+            console.print(table)
 
 
 @app.command()
 def history(
     suite_name: Annotated[
         str | None,
-        typer.Option("--suite", "-s", help="Filter by suite"),
+        typer.Option(
+            "--suite",
+            "-s",
+            help="Only show runs for this suite name.",
+        ),
     ] = None,
     limit: Annotated[
         int,
-        typer.Option("--limit", "-n", help="Number of runs to show"),
+        typer.Option(
+            "--limit",
+            "-n",
+            help="Maximum number of runs to display. Defaults to 20.",
+        ),
     ] = 20,
     run_id: Annotated[
         str | None,
-        typer.Option("--run", "-r", help="Show details for a specific run"),
+        typer.Option(
+            "--run",
+            "-r",
+            help="Show detailed check results for a specific run ID.",
+        ),
     ] = None,
 ) -> None:
-    """Show historical check results."""
+    """Browse historical check results stored locally.
+
+    Without options, lists the most recent runs. Use --run to drill into
+    the individual check results of a specific run.
+
+    Examples:
+
+        provero history
+
+        provero history --suite orders_suite --limit 5
+
+        provero history --run abc123
+    """
     from provero.store.sqlite import SQLiteStore
 
     store = SQLiteStore()
@@ -427,7 +626,8 @@ def history(
     else:
         runs = store.get_history(suite_name=suite_name, limit=limit)
         if not runs:
-            console.print("[dim]No history yet. Run 'provero run' first.[/dim]")
+            _echo("[dim]No history yet. Run 'provero run' first.[/dim]")
+            store.close()
             return
 
         table = Table(title="Run History")
@@ -552,25 +752,56 @@ def _print_csv(result, include_header: bool = True) -> None:
 def profile(
     config: Annotated[
         Path,
-        typer.Option("--config", "-c", help="Config file path"),
+        typer.Option(
+            "--config",
+            "-c",
+            help=("Path to the Provero YAML configuration file. Defaults to provero.yaml."),
+        ),
     ] = Path("provero.yaml"),
     table_name: Annotated[
         str | None,
-        typer.Option("--table", "-t", help="Table to profile"),
+        typer.Option(
+            "--table",
+            "-t",
+            help=("Name of the table to profile. Overrides the table in the config."),
+        ),
     ] = None,
     suggest: Annotated[
         bool,
-        typer.Option("--suggest", help="Suggest checks based on profile"),
+        typer.Option(
+            "--suggest",
+            help=("After profiling, suggest quality checks based on the data."),
+        ),
     ] = False,
     sample: Annotated[
         int | None,
-        typer.Option("--sample", help="Sample size for large tables"),
+        typer.Option(
+            "--sample",
+            help=("Number of rows to sample for profiling (useful for large tables)."),
+        ),
     ] = None,
 ) -> None:
-    """Profile a data source and optionally suggest checks."""
+    """Profile a data source and optionally suggest quality checks.
+
+    Connects to the data source, collects column-level statistics (nulls,
+    distinct values, min/max, mean), and prints a summary table.  Use
+    --suggest to get a ready-to-use YAML snippet with recommended checks.
+
+    Examples:
+
+        provero profile
+
+        provero profile --table orders --suggest
+
+        provero profile --sample 10000
+    """
     from provero.connectors.factory import create_connector
     from provero.core.compiler import SourceConfig, compile_file
-    from provero.core.profiler import checks_to_yaml, profile_table, suggest_checks
+    from provero.core.profiler import (
+        checks_to_yaml,
+        profile_table,
+        suggest_checks,
+    )
 
     if config.exists():
         provero_config = compile_file(config)
@@ -628,13 +859,21 @@ def profile(
         else:
             mean_str = "-"
 
-        tbl_display.add_row(col.name, col.dtype, null_str, distinct_str, min_str, max_str, mean_str)
+        tbl_display.add_row(
+            col.name,
+            col.dtype,
+            null_str,
+            distinct_str,
+            min_str,
+            max_str,
+            mean_str,
+        )
 
     console.print(tbl_display)
 
     if suggest:
         checks = suggest_checks(result)
-        console.print("\n[bold green]Suggested checks:[/bold green]\n")
+        _echo("\n[bold green]Suggested checks:[/bold green]\n")
         yaml_output = checks_to_yaml(checks, source.type, tbl)
         console.print(yaml_output)
 
@@ -643,31 +882,51 @@ def profile(
 def validate(
     config: Annotated[
         Path,
-        typer.Option("--config", "-c", help="Config file path"),
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to the Provero YAML configuration file to validate.",
+        ),
     ] = Path("provero.yaml"),
     schema_only: Annotated[
         bool,
-        typer.Option("--schema-only", help="Only validate against JSON Schema"),
+        typer.Option(
+            "--schema-only",
+            help=("Only run JSON Schema validation; skip semantic compilation."),
+        ),
     ] = False,
 ) -> None:
-    """Validate provero.yaml syntax without running checks."""
+    """Validate provero.yaml syntax without executing any checks.
+
+    Performs two levels of validation:
+
+      1. JSON Schema validation (structure and types).
+
+      2. Semantic compilation (connector resolution, check definitions).
+
+    Use --schema-only to limit validation to the first step.
+
+    Examples:
+
+        provero validate
+
+        provero validate -c staging.yaml --schema-only
+    """
     if not config.exists():
         console.print(f"[red]Config file not found: {config}[/red]")
         raise typer.Exit(1)
 
     import importlib.resources
-    import json
 
     import yaml
     from jsonschema import ValidationError
     from jsonschema import validate as json_validate
 
     # Step 1: Validate against JSON Schema
-    # Load schema.json bundled inside the provero package
     schema = None
     try:
         schema_ref = importlib.resources.files("provero").joinpath("schema.json")
-        schema = json.loads(schema_ref.read_text(encoding="utf-8"))
+        schema = json_mod.loads(schema_ref.read_text(encoding="utf-8"))
     except (FileNotFoundError, TypeError):
         pass
 
@@ -679,7 +938,7 @@ def validate(
         raw = yaml.safe_load(f)
     try:
         json_validate(instance=raw, schema=schema)
-        console.print("[green]Schema validation passed.[/green]")
+        _echo("[green]Schema validation passed.[/green]")
     except ValidationError as e:
         path = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "root"
         console.print(f"[red]Schema validation failed at '{path}':[/red] {e.message}")
@@ -694,7 +953,7 @@ def validate(
     try:
         provero_config = compile_file(config)
         total_checks = sum(len(s.checks) for s in provero_config.suites)
-        console.print(
+        _echo(
             f"[green]Valid.[/green] {len(provero_config.suites)} suite(s), {total_checks} check(s)"
         )
     except Exception as e:

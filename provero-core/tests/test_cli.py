@@ -25,6 +25,7 @@ import json
 import textwrap
 
 from provero import __version__
+from provero.cli import main as cli_main
 from provero.cli.main import _print_csv, app
 from provero.core.results import CheckResult, Severity, Status, SuiteResult
 
@@ -318,3 +319,114 @@ class TestContract:
         result = cli_runner.invoke(app, ["contract", "diff", str(old_config), str(new_config)])
         assert result.exit_code == 0
         assert "orders_contract" in result.output
+
+
+class TestQuietFlag:
+    """Tests for the --quiet / -q flag."""
+
+    def _reset_quiet(self):
+        """Ensure the module-level _quiet flag is reset after each test."""
+        cli_main._quiet = False
+
+    def test_quiet_run_table_suppresses_output(
+        self, cli_runner, duckdb_config_file, monkeypatch, tmp_path
+    ):
+        monkeypatch.chdir(tmp_path)
+        config_path = str(duckdb_config_file["config_path"])
+        result = cli_runner.invoke(app, ["--quiet", "run", "--config", config_path, "--no-store"])
+        self._reset_quiet()
+        assert result.exit_code == 0
+        # Table output (Suite:, Score:, PASS) must be absent
+        assert "Suite:" not in result.output
+        assert "Score:" not in result.output
+
+    def test_quiet_short_flag(self, cli_runner, duckdb_config_file, monkeypatch, tmp_path):
+        monkeypatch.chdir(tmp_path)
+        config_path = str(duckdb_config_file["config_path"])
+        result = cli_runner.invoke(app, ["-q", "run", "--config", config_path, "--no-store"])
+        self._reset_quiet()
+        assert result.exit_code == 0
+        assert "Suite:" not in result.output
+
+    def test_quiet_json_still_emits_json(
+        self, cli_runner, duckdb_config_file, monkeypatch, tmp_path
+    ):
+        monkeypatch.chdir(tmp_path)
+        config_path = str(duckdb_config_file["config_path"])
+        result = cli_runner.invoke(
+            app,
+            [
+                "--quiet",
+                "run",
+                "--config",
+                config_path,
+                "--format",
+                "json",
+                "--no-store",
+            ],
+        )
+        self._reset_quiet()
+        assert result.exit_code == 0
+        # Should still contain valid JSON
+        output = result.output.strip()
+        parsed = json.loads(output)
+        assert "suite_name" in parsed
+
+    def test_quiet_csv_still_emits_csv(self, cli_runner, duckdb_config_file, monkeypatch, tmp_path):
+        monkeypatch.chdir(tmp_path)
+        config_path = str(duckdb_config_file["config_path"])
+        result = cli_runner.invoke(
+            app,
+            [
+                "--quiet",
+                "run",
+                "--config",
+                config_path,
+                "--format",
+                "csv",
+                "--no-store",
+            ],
+        )
+        self._reset_quiet()
+        assert result.exit_code == 0
+        rows = list(csv.DictReader(io.StringIO(result.output)))
+        assert len(rows) > 0
+        assert "suite_name" in rows[0]
+
+    def test_quiet_validate_suppresses_info(self, cli_runner, sample_config_file):
+        result = cli_runner.invoke(
+            app, ["--quiet", "validate", "--config", str(sample_config_file)]
+        )
+        self._reset_quiet()
+        assert result.exit_code == 0
+        # "Valid." and "Schema validation passed" are informational
+        assert "Valid." not in result.output
+        assert "Schema validation passed" not in result.output
+
+    def test_quiet_init_suppresses_confirmation(self, cli_runner, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        result = cli_runner.invoke(app, ["--quiet", "init"])
+        self._reset_quiet()
+        assert result.exit_code == 0
+        assert (tmp_path / "provero.yaml").exists()
+        assert "Created" not in result.output
+
+    def test_quiet_preserves_exit_code_on_failure(
+        self, cli_runner, duckdb_file, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        config = tmp_path / "fail.yaml"
+        config.write_text(
+            textwrap.dedent(f"""\
+            source:
+              type: duckdb
+              connection: "{duckdb_file}"
+              table: orders
+
+            checks:
+              - unique: customer_id
+        """)
+        )
+        result = cli_runner.invoke(app, ["--quiet", "run", "--config", str(config), "--no-store"])
+        self._reset_quiet()
+        assert result.exit_code == 1

@@ -2808,7 +2808,7 @@ wheels = [
 
 [[package]]
 name = "provero"
-version = "0.0.1"
+version = "0.1.0.dev0"
 source = { editable = "provero-core" }
 dependencies = [
     { name = "duckdb" },
@@ -2914,6 +2914,7 @@ source = { editable = "provero-airflow" }
 dependencies = [
     { name = "apache-airflow" },
     { name = "provero" },
+    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -2926,6 +2927,7 @@ requires-dist = [
     { name = "apache-airflow", specifier = ">=2.9" },
     { name = "provero", editable = "provero-core" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
 ]
 provides-extras = ["dev"]
 

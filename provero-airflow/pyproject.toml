@@ -17,6 +17,7 @@ classifiers = [
 dependencies = [
     "provero>=0.0.1",
     "apache-airflow>=2.9",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]

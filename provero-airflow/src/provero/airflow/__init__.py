@@ -20,12 +20,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import yaml
 
 
-def get_provider_info() -> dict:
+def get_provider_info() -> dict[str, Any]:
     """Return provider metadata for Airflow's provider manager."""
     provider_yaml = Path(__file__).parent / "provider.yaml"
-    with open(provider_yaml) as f:
+    with open(provider_yaml, encoding="utf-8") as f:
         return yaml.safe_load(f)

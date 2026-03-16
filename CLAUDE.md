@@ -4,10 +4,11 @@ Vendor-neutral, declarative data quality engine.
 
 ## Project structure
 
-uv workspace monorepo with two packages:
+uv workspace monorepo with three packages:
 
 - `provero-core/` - pacote principal `provero` (engine, checks, connectors, CLI)
 - `provero-airflow/` - provider Airflow (`ProveroCheckOperator`, decorators)
+- `provero-flyte/` - plugin Flyte (`provero_check_task`, decorators)
 
 ## Commands
 

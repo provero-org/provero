@@ -1,0 +1,38 @@
+[project]
+name = "provero-flyte"
+version = "0.1.0-dev"
+description = "Provero Flyte plugin: run quality checks as Flyte tasks"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+authors = [
+    { name = "Provero Contributors" },
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+]
+
+dependencies = [
+    "provero>=0.0.1",
+    "flytekit>=1.11",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/provero-org/provero"
+Repository = "https://github.com/provero-org/provero"
+Issues = "https://github.com/provero-org/provero/issues"
+Documentation = "https://provero.org/docs"
+Changelog = "https://github.com/provero-org/provero/blob/main/CHANGELOG.md"
+
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/provero"]

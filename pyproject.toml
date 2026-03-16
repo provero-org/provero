@@ -24,6 +24,7 @@ dev = [
 members = [
     "provero-core",
     "provero-airflow",
+    "provero-flyte",
 ]
 
 [tool.uv.sources]
@@ -32,7 +33,7 @@ provero = { workspace = true }
 [tool.ruff]
 target-version = "py311"
 line-length = 100
-src = ["provero-core/src", "provero-airflow/src"]
+src = ["provero-core/src", "provero-airflow/src", "provero-flyte/src"]
 
 [tool.ruff.lint]
 select = [

@@ -79,39 +79,40 @@ def provero_check_task(config: ProveroCheckConfig) -> list[ProveroCheckResult]:
     store = SQLiteStore()
     results: list[ProveroCheckResult] = []
 
-    for suite_config in compiled.suites:
-        if config.suite and suite_config.name != config.suite:
-            continue
+    try:
+        for suite_config in compiled.suites:
+            if config.suite and suite_config.name != config.suite:
+                continue
 
-        connector = create_connector(suite_config.source)
-        suite_result = run_suite(suite_config, connector, optimize=config.optimize)
-        store.save_result(suite_result)
+            connector = create_connector(suite_config.source)
+            suite_result = run_suite(suite_config, connector, optimize=config.optimize)
+            store.save_result(suite_result)
 
-        failed_checks = [c.check_name for c in suite_result.checks if c.status == Status.FAIL]
+            failed_checks = [c.check_name for c in suite_result.checks if c.status == Status.FAIL]
 
-        results.append(
-            ProveroCheckResult(
-                suite_name=suite_result.suite_name,
-                status=str(suite_result.status),
-                total=suite_result.total,
-                passed=suite_result.passed,
-                failed=suite_result.failed,
-                warned=suite_result.warned,
-                errored=suite_result.errored,
-                quality_score=suite_result.quality_score,
-                duration_ms=suite_result.duration_ms,
-                failed_checks=failed_checks,
+            results.append(
+                ProveroCheckResult(
+                    suite_name=suite_result.suite_name,
+                    status=str(suite_result.status),
+                    total=suite_result.total,
+                    passed=suite_result.passed,
+                    failed=suite_result.failed,
+                    warned=suite_result.warned,
+                    errored=suite_result.errored,
+                    quality_score=suite_result.quality_score,
+                    duration_ms=suite_result.duration_ms,
+                    failed_checks=failed_checks,
+                )
             )
-        )
 
-        if config.fail_on_error and suite_result.status == Status.FAIL:
-            msg = (
-                f"Suite '{suite_config.name}' failed. "
-                f"Score: {suite_result.quality_score}/100. "
-                f"Failed checks: {', '.join(failed_checks)}"
-            )
-            store.close()
-            raise ValueError(msg)
+            if config.fail_on_error and suite_result.status == Status.FAIL:
+                msg = (
+                    f"Suite '{suite_config.name}' failed. "
+                    f"Score: {suite_result.quality_score}/100. "
+                    f"Failed checks: {', '.join(failed_checks)}"
+                )
+                raise ValueError(msg)
+    finally:
+        store.close()
 
-    store.close()
     return results

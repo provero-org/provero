@@ -73,14 +73,14 @@ jobs:
             echo "News fragment found."
             exit 0
           fi
-          # Allow skipping for docs-only or CI-only changes
-          changed=$(git diff --name-only origin/main...HEAD)
-          if echo "$changed" | grep -qvE '\.(md|yml|yaml)$'; then
+          # Only require news fragment when source code changes
+          SOURCE_PATHS="^provero-core/src/|^provero-airflow/src/"
+          if git diff --name-only origin/main...HEAD | grep -qE "$SOURCE_PATHS"; then
             echo "::error::Missing news fragment. Add a file to newsfragments/ (e.g. 42.feature.md)"
             echo "See CONTRIBUTING.md for details."
             exit 1
           fi
-          echo "Docs/CI-only change, skipping changelog requirement."
+          echo "No source code changes, skipping changelog requirement."
 
   build-verify:
     runs-on: ubuntu-latest

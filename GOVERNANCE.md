@@ -33,7 +33,7 @@ A committer who participates in project governance decisions.
 
 ## Voting
 
-Votes follow the Apache voting process:
+Votes follow the consensus voting process:
 
 - **+1**: Yes, approve
 - **0**: No opinion
@@ -52,4 +52,4 @@ Most decisions use lazy consensus: a proposal is shared, and if no one objects w
 | GitHub Discussions | Questions, ideas, show-and-tell |
 | GitHub Issues | Bug reports, feature requests |
 | Slack | Real-time chat |
-| dev@ mailing list | Formal decisions (when under Apache governance) |
+| dev@ mailing list | Formal decisions |

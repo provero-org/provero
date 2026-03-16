@@ -9,6 +9,12 @@
 
 A vendor-neutral, declarative data quality engine.
 
+<!-- Demo GIF will be generated from docs/demo.tape using charmbracelet/vhs -->
+<!-- To generate: vhs docs/demo.tape -o docs/assets/demo.gif -->
+<p align="center">
+  <img src="docs/assets/demo.gif" alt="Provero demo" width="700">
+</p>
+
 ## Quick Start
 
 ```bash
@@ -241,11 +247,6 @@ provero contract diff old.yaml new.yaml
 | DuckDB      | Stable   | included                         |
 | PostgreSQL  | Stable   | `pip install provero[postgres]`    |
 | DataFrame   | Stable   | `pip install provero[dataframe]`   |
-| MySQL       | Beta     | `pip install provero` (SQLAlchemy) |
-| SQLite      | Beta     | `pip install provero` (SQLAlchemy) |
-| Snowflake   | Beta     | `pip install provero[snowflake]`   |
-| BigQuery    | Beta     | `pip install provero[bigquery]`    |
-| Redshift    | Beta     | `pip install provero[redshift]`    |
 
 DuckDB supports file expressions: `read_csv('data.csv')`, `read_parquet('*.parquet')`.
 

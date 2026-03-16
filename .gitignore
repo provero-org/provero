@@ -35,6 +35,8 @@ Thumbs.db
 .env
 .env.local
 
+# Claude Code (local config)
+.claude/
+
 # Data directories
-.provero/
 .provero/

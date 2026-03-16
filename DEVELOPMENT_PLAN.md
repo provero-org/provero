@@ -2,8 +2,7 @@
 
 ## Overview
 
-This plan covers the development roadmap from initial prototype to Apache
-incubation proposal. Each phase has clear deliverables and success criteria.
+This plan covers the development roadmap from initial prototype to community adoption. Each phase has clear deliverables and success criteria.
 
 ---
 
@@ -281,7 +280,7 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 
 ## Phase 10: AQL Spec v1.0 & Community (Weeks 37-40)
 
-**Goal:** Formal AQL specification and community building for incubation.
+**Goal:** Formal AQL specification and community building.
 
 ### Tasks
 
@@ -295,48 +294,11 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 - [ ] Blog: "From Griffin to Provero: lessons learned"
 - [ ] Outreach to potential committers from other organizations
 - [ ] Identify 3+ organizations willing to be listed as adopters
-- [ ] Identify ASF Champion (potiuk) and Mentors (jscheffl + others)
 
 ### Success Criteria
 
 - AQL spec published and reviewable
 - At least 3 organizations using Provero or committed to using it
-- Champion and 3 mentors confirmed
-
----
-
-## Phase 11: Apache Incubation Proposal (Weeks 41-44)
-
-**Goal:** Submit proposal to Apache Incubator.
-
-### Tasks
-
-- [ ] Write incubation proposal (following ASF template)
-  - Abstract
-  - Background and rationale
-  - Initial goals
-  - Current status (meritocracy, community, core developers, alignment)
-  - Known risks and mitigation
-  - External dependencies and licenses
-  - Required resources (mailing lists, git, CI)
-  - Initial committers (from 3+ organizations)
-  - Champion and mentors
-- [ ] Submit to general@incubator.apache.org for discussion
-- [ ] Address feedback from IPMC
-- [ ] Call for vote
-- [ ] If accepted: set up ASF infrastructure
-  - Mailing lists (dev@, commits@, issues@)
-  - JIRA project
-  - Confluence wiki
-  - Transfer repo to apache/ org
-  - Set up ASF CI (GitHub Actions with ASF secrets)
-  - KEYS file for release signing
-
-### Success Criteria
-
-- Proposal accepted by IPMC vote (3+ binding +1, no veto)
-- Infrastructure provisioned
-- First release as Apache podling
 
 ---
 
@@ -355,7 +317,6 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 | 8 | Streaming | 31-34 | Nov 2026 |
 | 9 | Flyte plugin | 35-36 | Dec 2026 |
 | 10 | AQL spec & community | 37-40 | Jan 2027 |
-| 11 | Incubation proposal | 41-44 | Feb 2027 |
 
 ---
 
@@ -377,8 +338,7 @@ incubation proposal. Each phase has clear deliverables and success criteria.
 - Server mode, cloud connectors, alerts
 - Usable by teams and organizations
 
-### M5: "It's Apache" (end of Phase 11)
-- Accepted into Apache Incubator
+### M5: "It's a community" (end of Phase 10)
 - Community of contributors from multiple organizations
 
 ---

@@ -24,6 +24,8 @@ import io
 import json
 import textwrap
 
+import pytest
+
 from provero import __version__
 from provero.cli import main as cli_main
 from provero.cli.main import _print_csv, app
@@ -324,8 +326,9 @@ class TestContract:
 class TestQuietFlag:
     """Tests for the --quiet / -q flag."""
 
-    def _reset_quiet(self):
-        """Ensure the module-level _quiet flag is reset after each test."""
+    @pytest.fixture(autouse=True)
+    def _reset_quiet_flag(self):
+        yield
         cli_main._quiet = False
 
     def test_quiet_run_table_suppresses_output(
@@ -334,7 +337,6 @@ class TestQuietFlag:
         monkeypatch.chdir(tmp_path)
         config_path = str(duckdb_config_file["config_path"])
         result = cli_runner.invoke(app, ["--quiet", "run", "--config", config_path, "--no-store"])
-        self._reset_quiet()
         assert result.exit_code == 0
         # Table output (Suite:, Score:, PASS) must be absent
         assert "Suite:" not in result.output
@@ -344,7 +346,6 @@ class TestQuietFlag:
         monkeypatch.chdir(tmp_path)
         config_path = str(duckdb_config_file["config_path"])
         result = cli_runner.invoke(app, ["-q", "run", "--config", config_path, "--no-store"])
-        self._reset_quiet()
         assert result.exit_code == 0
         assert "Suite:" not in result.output
 
@@ -365,7 +366,6 @@ class TestQuietFlag:
                 "--no-store",
             ],
         )
-        self._reset_quiet()
         assert result.exit_code == 0
         # Should still contain valid JSON
         output = result.output.strip()
@@ -387,7 +387,6 @@ class TestQuietFlag:
                 "--no-store",
             ],
         )
-        self._reset_quiet()
         assert result.exit_code == 0
         rows = list(csv.DictReader(io.StringIO(result.output)))
         assert len(rows) > 0
@@ -397,7 +396,6 @@ class TestQuietFlag:
         result = cli_runner.invoke(
             app, ["--quiet", "validate", "--config", str(sample_config_file)]
         )
-        self._reset_quiet()
         assert result.exit_code == 0
         # "Valid." and "Schema validation passed" are informational
         assert "Valid." not in result.output
@@ -406,7 +404,6 @@ class TestQuietFlag:
     def test_quiet_init_suppresses_confirmation(self, cli_runner, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         result = cli_runner.invoke(app, ["--quiet", "init"])
-        self._reset_quiet()
         assert result.exit_code == 0
         assert (tmp_path / "provero.yaml").exists()
         assert "Created" not in result.output
@@ -428,5 +425,26 @@ class TestQuietFlag:
         """)
         )
         result = cli_runner.invoke(app, ["--quiet", "run", "--config", str(config), "--no-store"])
-        self._reset_quiet()
         assert result.exit_code == 1
+
+    def test_quiet_profile_suppresses_table(
+        self, cli_runner, duckdb_config_file, monkeypatch, tmp_path
+    ):
+        monkeypatch.chdir(tmp_path)
+        config_path = str(duckdb_config_file["config_path"])
+        result = cli_runner.invoke(app, ["--quiet", "profile", "--config", config_path])
+        assert result.exit_code == 0
+        assert "Profile:" not in result.output
+        assert "Column" not in result.output
+
+    def test_quiet_history_suppresses_table(
+        self, cli_runner, duckdb_config_file, monkeypatch, tmp_path
+    ):
+        monkeypatch.chdir(tmp_path)
+        config_path = str(duckdb_config_file["config_path"])
+        # First run to populate history
+        cli_runner.invoke(app, ["run", "--config", config_path])
+        # Now check quiet history
+        result = cli_runner.invoke(app, ["--quiet", "history"])
+        assert result.exit_code == 0
+        assert "Run History" not in result.output

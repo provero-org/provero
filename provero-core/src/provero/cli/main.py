@@ -622,7 +622,8 @@ def history(
                 row["expected_value"] or "",
             )
 
-        console.print(table)
+        if not _quiet:
+            console.print(table)
     else:
         runs = store.get_history(suite_name=suite_name, limit=limit)
         if not runs:
@@ -653,7 +654,8 @@ def history(
                 row["started_at"][:19],
             )
 
-        console.print(table)
+        if not _quiet:
+            console.print(table)
 
     store.close()
 
@@ -869,13 +871,15 @@ def profile(
             mean_str,
         )
 
-    console.print(tbl_display)
+    if not _quiet:
+        console.print(tbl_display)
 
     if suggest:
         checks = suggest_checks(result)
         _echo("\n[bold green]Suggested checks:[/bold green]\n")
         yaml_output = checks_to_yaml(checks, source.type, tbl)
-        console.print(yaml_output)
+        if not _quiet:
+            console.print(yaml_output)
 
 
 @app.command()

@@ -136,7 +136,7 @@ The `on_violation` field controls the severity assigned to contract violations:
 |--------|----------|
 | `warn` | Violations are reported as warnings. The overall status is `warn` unless a critical violation exists. |
 | `block` | Violations are treated as critical. Any violation causes the contract to fail with `fail` status. |
-| `quarantine` | Same as `block`. Intended for pipelines that route failing data to a quarantine table. |
+| `quarantine` | Log warning and mark data for review. Violations get `warning` severity. Intended for pipelines that route failing data to a quarantine table. |
 
 ```yaml
 contracts:

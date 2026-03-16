@@ -58,6 +58,7 @@ dev = [
 ]
 docs = [
     "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.25",
 ]
 
 [tool.towncrier]

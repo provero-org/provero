@@ -31,6 +31,16 @@ theme:
 
 plugins:
   - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [provero-core/src]
+          options:
+            show_source: false
+            show_bases: true
+            members_order: source
+            docstring_style: google
+            merge_init_into_class: true
 
 markdown_extensions:
   - admonition
@@ -58,5 +68,17 @@ nav:
   - Check Types: checks.md
   - Connectors: connectors.md
   - CLI Reference: cli.md
+  - API Reference:
+      - api/index.md
+      - Engine: api/engine.md
+      - Checks: api/checks.md
+      - Connectors: api/connectors.md
+      - Compiler: api/compiler.md
+      - Results: api/results.md
+      - Contracts: api/contracts.md
+      - Anomaly Detection: api/anomaly.md
+      - Store: api/store.md
+      - Profiler: api/profiler.md
+      - Alerts: api/alerts.md
   - Architecture: ARCHITECTURE.md
   - Release Process: RELEASE_PROCESS.md

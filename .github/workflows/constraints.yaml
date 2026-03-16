@@ -47,7 +47,7 @@ jobs:
         with:
           path: constraints
           merge-multiple: true
-      - uses: peter-evans/create-pull-request@v7
+      - uses: peter-evans/create-pull-request@v8
         with:
           title: "Update constraint files"
           commit-message: "Update constraint files"

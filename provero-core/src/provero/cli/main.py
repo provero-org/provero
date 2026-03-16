@@ -311,7 +311,7 @@ def run(
             # table format is suppressed entirely in quiet mode.
         else:
             if output_format == "json":
-                console.print(result.model_dump_json(indent=2))
+                typer.echo(result.model_dump_json(indent=2))
             elif output_format == "csv":
                 _print_csv(result, include_header=not csv_header_written)
                 csv_header_written = True

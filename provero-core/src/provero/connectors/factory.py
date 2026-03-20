@@ -27,11 +27,14 @@ The factory discovers them automatically at runtime.
 
 from __future__ import annotations
 
+import logging
 import os
 from importlib.metadata import entry_points
 from typing import Any
 
 from provero.core.compiler import SourceConfig
+
+logger = logging.getLogger(__name__)
 
 # Built-in connector mappings (type_name -> import_path, class_name)
 _BUILTINS: dict[str, tuple[str, str]] = {
@@ -65,6 +68,13 @@ def _load_plugins() -> None:
     if _PLUGINS_LOADED:
         return
     for ep in entry_points(group="provero.connectors"):
+        if ep.name in _BUILTINS:
+            logger.warning(
+                "Plugin '%s' attempted to override built-in connector '%s'; skipping.",
+                ep.value,
+                ep.name,
+            )
+            continue
         _PLUGIN_REGISTRY[ep.name] = ep
     _PLUGINS_LOADED = True
 
@@ -98,10 +108,10 @@ def create_connector(source: SourceConfig):
     """Create a connector based on source type.
 
     Resolution order:
-    1. entry_points plugins (``provero.connectors`` group)
-    2. Built-in connectors (DuckDB, Postgres, SQLAlchemy-based)
+    1. Built-in connectors (DuckDB, Postgres, SQLAlchemy-based)
+    2. entry_points plugins (DuckDB, Postgres, SQLAlchemy-based)
 
-    Plugins take priority so users can override built-ins.
+    Plugins cannot override built-in connectors.
     """
     source_type = source.type.lower()
     connection = _resolve_connection(source.connection)
@@ -114,13 +124,7 @@ def create_connector(source: SourceConfig):
         )
         raise ValueError(msg)
 
-    # 1. Check plugins first (they can override built-ins)
-    _load_plugins()
-    if source_type in _PLUGIN_REGISTRY:
-        connector_class = _PLUGIN_REGISTRY[source_type].load()
-        return connector_class(connection_string=connection) if connection else connector_class()
-
-    # 2. Fall back to built-ins
+    # 1. Check built-ins first
     connector_class = _load_builtin(source_type)
     if connector_class is not None:
         if source_type == "duckdb":
@@ -130,6 +134,12 @@ def create_connector(source: SourceConfig):
             msg = f"{source_type} connector requires a connection string"
             raise ValueError(msg)
         return connector_class(connection_string=connection)
+
+    # 2. Check plugins
+    _load_plugins()
+    if source_type in _PLUGIN_REGISTRY:
+        connector_class = _PLUGIN_REGISTRY[source_type].load()
+        return connector_class(connection_string=connection) if connection else connector_class()
 
     # 3. Nothing found
     available = sorted(set(list(_BUILTINS.keys()) + list(_PLUGIN_REGISTRY.keys())))

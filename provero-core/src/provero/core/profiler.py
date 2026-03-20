@@ -223,8 +223,11 @@ def suggest_checks(profile: TableProfile) -> list[dict[str, Any]]:
         if col.distinct_pct == 100 and col.total_count > 1:
             unique_cols.append(col.name)
 
-        # Suggest accepted_values for low-cardinality columns
-        if 0 < col.distinct_count <= 20 and col.top_values:
+        # Suggest accepted_values only for string columns with low cardinality
+        is_string_col = any(
+            t in col.dtype.lower() for t in ["varchar", "text", "char", "string"]
+        )
+        if is_string_col and 0 < col.distinct_count < 20 and col.top_values:
             values = [str(v["value"]) for v in col.top_values]
             checks.append(
                 {

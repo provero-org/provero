@@ -22,15 +22,15 @@ from __future__ import annotations
 from typing import Any, cast
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Connection, Engine
 
 
 class SQLAlchemyConnection:
     """SQLAlchemy-based connection wrapper."""
 
-    def __init__(self, engine: Engine) -> None:
+    def __init__(self, engine: Engine, conn: Connection | None = None) -> None:
         self._engine = engine
-        self._conn = engine.connect()
+        self._conn = conn if conn is not None else engine.connect()
 
     def execute(self, query: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         result = self._conn.execute(text(query), params or {})
@@ -67,7 +67,6 @@ class SQLAlchemyConnection:
 
     def close(self) -> None:
         self._conn.close()
-        self._engine.dispose()
 
 
 class PostgresConnector:
@@ -75,10 +74,17 @@ class PostgresConnector:
 
     def __init__(self, connection_string: str) -> None:
         self.connection_string = connection_string
+        self._engine: Engine | None = None
+
+    def _get_engine(self) -> Engine:
+        if self._engine is None:
+            self._engine = create_engine(self.connection_string)
+        return self._engine
 
     def connect(self) -> SQLAlchemyConnection:
-        engine = create_engine(self.connection_string)
-        return SQLAlchemyConnection(engine)
+        engine = self._get_engine()
+        conn = engine.connect()
+        return SQLAlchemyConnection(engine, conn)
 
     def disconnect(self, connection: SQLAlchemyConnection) -> None:
         connection.close()

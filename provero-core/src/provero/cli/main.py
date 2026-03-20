@@ -204,6 +204,12 @@ def init(
 
 @app.command()
 def run(
+    config_path: Annotated[
+        str | None,
+        typer.Argument(
+            help="Path to the Provero YAML configuration file (positional).",
+        ),
+    ] = None,
     config: Annotated[
         Path,
         typer.Option(
@@ -283,8 +289,9 @@ def run(
 
         provero run --quiet --format json
     """
-    if not config.exists():
-        console.print(f"[red]Config file not found: {config}[/red]")
+    effective_config = Path(config_path) if config_path else config
+    if not effective_config.exists():
+        console.print(f"[red]Config file not found: {effective_config}[/red]")
         console.print("Run 'provero init' to create one.")
         raise typer.Exit(1)
 
@@ -292,7 +299,7 @@ def run(
     from provero.core.compiler import compile_file
     from provero.core.engine import run_suite
 
-    provero_config = compile_file(config)
+    provero_config = compile_file(effective_config)
 
     store = None
     if not no_store:
@@ -911,6 +918,12 @@ def profile(
 
 @app.command()
 def validate(
+    config_path: Annotated[
+        str | None,
+        typer.Argument(
+            help="Path to the Provero YAML configuration file (positional).",
+        ),
+    ] = None,
     config: Annotated[
         Path,
         typer.Option(
@@ -943,8 +956,9 @@ def validate(
 
         provero validate -c staging.yaml --schema-only
     """
-    if not config.exists():
-        console.print(f"[red]Config file not found: {config}[/red]")
+    effective_config = Path(config_path) if config_path else config
+    if not effective_config.exists():
+        console.print(f"[red]Config file not found: {effective_config}[/red]")
         raise typer.Exit(1)
 
     import importlib.resources
@@ -965,7 +979,7 @@ def validate(
         console.print("[red]Schema file not found. Cannot validate.[/red]")
         raise typer.Exit(1)
 
-    with config.open() as f:
+    with effective_config.open() as f:
         raw = yaml.safe_load(f)
     try:
         json_validate(instance=raw, schema=schema)
@@ -982,7 +996,7 @@ def validate(
     from provero.core.compiler import compile_file
 
     try:
-        provero_config = compile_file(config)
+        provero_config = compile_file(effective_config)
         total_checks = sum(len(s.checks) for s in provero_config.suites)
         _echo(
             f"[green]Valid.[/green] {len(provero_config.suites)} suite(s), {total_checks} check(s)"

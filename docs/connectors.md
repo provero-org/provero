@@ -167,20 +167,22 @@ The DataFrame connector is designed for programmatic use from Python, not from Y
 ```python
 import pandas as pd
 from provero.connectors.dataframe import DataFrameConnector
-from provero.core.engine import Engine
+from provero.core.engine import run_suite
+from provero.core.compiler import SuiteConfig, SourceConfig, CheckConfig
 
 df = pd.read_csv("orders.csv")
-
 connector = DataFrameConnector(df, table_name="orders")
-engine = Engine.from_dict({
-    "source": {"type": "dataframe", "table": "orders"},
-    "checks": [
-        {"not_null": "order_id"},
-        {"unique": "order_id"},
-        {"row_count": {"min": 1}},
+
+suite = SuiteConfig(
+    name="pandas_checks",
+    source=SourceConfig(type="dataframe", table="orders"),
+    checks=[
+        CheckConfig(check_type="not_null", column="order_id"),
+        CheckConfig(check_type="unique", column="order_id"),
+        CheckConfig(check_type="row_count", params={"min": 1}),
     ],
-})
-results = engine.run()
+)
+result = run_suite(suite, connector)
 ```
 
 ### Polars
@@ -190,19 +192,22 @@ Polars DataFrames are converted to Arrow tables and registered in DuckDB transpa
 ```python
 import polars as pl
 from provero.connectors.dataframe import DataFrameConnector
-from provero.core.engine import Engine
+from provero.connectors.dataframe import DataFrameConnector
+from provero.core.engine import run_suite
+from provero.core.compiler import SuiteConfig, SourceConfig, CheckConfig
 
 df = pl.read_csv("orders.csv")
-
 connector = DataFrameConnector(df, table_name="orders")
-engine = Engine.from_dict({
-    "source": {"type": "dataframe", "table": "orders"},
-    "checks": [
-        {"not_null": "order_id"},
-        {"row_count": {"min": 1}},
+
+suite = SuiteConfig(
+    name="polars_checks",
+    source=SourceConfig(type="dataframe", table="orders"),
+    checks=[
+        CheckConfig(check_type="not_null", column="order_id"),
+        CheckConfig(check_type="row_count", params={"min": 1}),
     ],
-})
-results = engine.run()
+)
+result = run_suite(suite, connector)
 ```
 
 ### Using DataFrameConnector Directly

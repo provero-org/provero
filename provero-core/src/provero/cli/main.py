@@ -204,6 +204,10 @@ def init(
 
 @app.command()
 def run(
+    config_path: Annotated[
+        Path | None,
+        typer.Argument(help="Path to config file (alternative to -c)."),
+    ] = None,
     config: Annotated[
         Path,
         typer.Option(
@@ -283,6 +287,7 @@ def run(
 
         provero run --quiet --format json
     """
+    config = config_path or config
     if not config.exists():
         console.print(f"[red]Config file not found: {config}[/red]")
         console.print("Run 'provero init' to create one.")
@@ -911,6 +916,10 @@ def profile(
 
 @app.command()
 def validate(
+    config_path: Annotated[
+        Path | None,
+        typer.Argument(help="Path to config file (alternative to -c)."),
+    ] = None,
     config: Annotated[
         Path,
         typer.Option(
@@ -943,6 +952,7 @@ def validate(
 
         provero validate -c staging.yaml --schema-only
     """
+    config = config_path or config
     if not config.exists():
         console.print(f"[red]Config file not found: {config}[/red]")
         raise typer.Exit(1)

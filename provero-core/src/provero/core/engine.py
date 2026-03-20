@@ -182,10 +182,26 @@ def run_suite(
     expanded_checks = _expand_multi_column_checks(suite.checks)
 
     if optimize:
-        plan = plan_batch(suite.source.table, expanded_checks)
+        try:
+            plan = plan_batch(suite.source.table, expanded_checks)
+        except (ValueError, TypeError) as e:
+            results.append(
+                CheckResult(
+                    check_name="plan_batch",
+                    check_type="batch",
+                    status=Status.ERROR,
+                    severity=Severity.CRITICAL,
+                    source=suite.source.type,
+                    table=suite.source.table,
+                    observed_value=str(e),
+                    run_id=run_id,
+                    suite=suite.name,
+                )
+            )
+            plan = None
 
         # Execute batched checks (single query)
-        if plan.metrics:
+        if plan and plan.metrics:
             batch_start = time.monotonic()
             try:
                 batch_results = execute_batch(connection, plan)
@@ -220,7 +236,7 @@ def run_suite(
                 )
 
         # Execute non-batchable checks individually
-        remaining = plan.non_batchable
+        remaining = plan.non_batchable if plan else expanded_checks
     else:
         remaining = expanded_checks
 

@@ -43,7 +43,7 @@ def _query_metric(
     if metric == "null_count" and column:
         qcol = quote_identifier(column)
         rows = connection.execute(
-            f"SELECT COUNT(*) FILTER (WHERE {qcol} IS NULL) as v FROM {qtable}"
+            f"SELECT SUM(CASE WHEN {qcol} IS NULL THEN 1 ELSE 0 END) as v FROM {qtable}"
         )
         return float(rows[0]["v"])
 
@@ -51,7 +51,7 @@ def _query_metric(
         qcol = quote_identifier(column)
         rows = connection.execute(
             f"SELECT COUNT(*) as total, "
-            f"COUNT(*) FILTER (WHERE {qcol} IS NULL) as nulls "
+            f"SUM(CASE WHEN {qcol} IS NULL THEN 1 ELSE 0 END) as nulls "
             f"FROM {qtable}"
         )
         total = rows[0]["total"]

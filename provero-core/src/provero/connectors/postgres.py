@@ -75,10 +75,13 @@ class PostgresConnector:
 
     def __init__(self, connection_string: str) -> None:
         self.connection_string = connection_string
+        self._engine: Engine | None = None
 
     def connect(self) -> SQLAlchemyConnection:
-        engine = create_engine(self.connection_string)
-        return SQLAlchemyConnection(engine)
+        # Lazily create engine on first connect, then reuse for pooling
+        if self._engine is None:
+            self._engine = create_engine(self.connection_string)
+        return SQLAlchemyConnection(self._engine)
 
     def disconnect(self, connection: SQLAlchemyConnection) -> None:
         connection.close()

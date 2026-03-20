@@ -22,8 +22,9 @@ try:
 
     __version__ = version("provero")
 except Exception:
-    __version__ = "0.1.0"
+    __version__ = "0.0.0-dev"
 
 from provero.core.engine import Engine
+from provero.core.results import CheckResult, Severity, Status, SuiteResult
 
-__all__ = ["Engine", "__version__"]
+__all__ = ["CheckResult", "Engine", "Severity", "Status", "SuiteResult", "__version__"]

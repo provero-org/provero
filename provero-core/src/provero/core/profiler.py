@@ -223,8 +223,10 @@ def suggest_checks(profile: TableProfile) -> list[dict[str, Any]]:
         if col.distinct_pct == 100 and col.total_count > 1:
             unique_cols.append(col.name)
 
-        # Suggest accepted_values for low-cardinality columns
-        if 0 < col.distinct_count <= 20 and col.top_values:
+        # Suggest accepted_values for low-cardinality non-numeric columns.
+        # For numeric columns, range checks are more appropriate.
+        is_numeric_col = col.min_value is not None and col.max_value is not None
+        if 0 < col.distinct_count <= 20 and col.top_values and not is_numeric_col:
             values = [str(v["value"]) for v in col.top_values]
             checks.append(
                 {

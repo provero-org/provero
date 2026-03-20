@@ -40,7 +40,7 @@ ValidatedOrders = Annotated[
         checks=[
             CheckConfig(check_type="not_null", column="order_id"),
             CheckConfig(check_type="not_null", column="amount"),
-            CheckConfig(check_type="positive", column="amount"),
+            CheckConfig(check_type="range", column="amount", params={"min": 0}),
         ],
         on_error="raise",
     ),

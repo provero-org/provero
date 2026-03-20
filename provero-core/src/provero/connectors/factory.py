@@ -65,6 +65,10 @@ def _load_plugins() -> None:
     if _PLUGINS_LOADED:
         return
     for ep in entry_points(group="provero.connectors"):
+        # Skip plugins that would override a built-in connector type.
+        # This prevents malicious packages from hijacking known connectors.
+        if ep.name in _BUILTINS:
+            continue
         _PLUGIN_REGISTRY[ep.name] = ep
     _PLUGINS_LOADED = True
 

@@ -7,6 +7,7 @@ version: "1.0"
 sources:
   warehouse:
     type: duckdb
+    connection: ecommerce.duckdb
     # For production, use:
     # type: postgres
     # connection: ${WAREHOUSE_URI}

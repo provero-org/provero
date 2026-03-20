@@ -22,7 +22,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from enum import StrEnum
 from functools import partial
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
 
@@ -98,7 +98,7 @@ class SuiteResult(BaseModel):
 
     quality_score: float = 0.0
 
-    _SEVERITY_WEIGHT: dict[Severity, float] = {
+    _SEVERITY_WEIGHT: ClassVar[dict[Severity, float]] = {
         Severity.INFO: 0.25,
         Severity.WARNING: 0.5,
         Severity.CRITICAL: 1.0,

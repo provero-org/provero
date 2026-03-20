@@ -359,11 +359,13 @@ class Engine:
                 sources[name] = SourceConfig(**src)
 
         if "source" in raw and "checks" in raw:
-            source = (
-                SourceConfig(**raw["source"])
-                if isinstance(raw["source"], dict)
-                else sources.get(raw["source"])
-            )
+            if isinstance(raw["source"], dict):
+                source = SourceConfig(**raw["source"])
+            else:
+                source = sources.get(raw["source"])
+                if source is None:
+                    msg = f"Source '{raw['source']}' not found in declared sources: {sorted(sources)}"
+                    raise ValueError(msg)
             checks = [parse_check(c) for c in raw["checks"]]
             suite = SuiteConfig(
                 name="default",
@@ -382,7 +384,11 @@ class Engine:
             for raw_suite in raw.get("suites", []):
                 source_ref = raw_suite.get("source", {})
                 if isinstance(source_ref, str):
-                    source = sources.get(source_ref)
+                    resolved = sources.get(source_ref)
+                    if resolved is None:
+                        msg = f"Source '{source_ref}' not found in declared sources: {sorted(sources)}"
+                        raise ValueError(msg)
+                    source = resolved
                 else:
                     source = SourceConfig(**source_ref)
                 if "table" in raw_suite:

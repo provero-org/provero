@@ -3,7 +3,7 @@ name = "provero-flyte"
 version = "0.1.1"
 description = "Provero Flyte plugin: run quality checks as Flyte tasks"
 license = "Apache-2.0"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.13"
 authors = [
     { name = "Provero Contributors" },
 ]

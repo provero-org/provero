@@ -16,3 +16,8 @@
 # under the License.
 
 """Alert dispatching for quality check failures."""
+
+from provero.alerts.models import AlertConfig
+from provero.alerts.sender import send_alert, send_alerts
+
+__all__ = ["AlertConfig", "send_alert", "send_alerts"]

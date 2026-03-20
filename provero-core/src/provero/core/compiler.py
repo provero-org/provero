@@ -127,8 +127,11 @@ def compile_file(path: str | Path) -> ProveroConfig:
         source = (
             SourceConfig(**raw["source"])
             if isinstance(raw["source"], dict)
-            else sources.get(raw["source"], SourceConfig(type="unknown"))
+            else sources.get(raw["source"])
         )
+        if source is None:
+            msg = f"Source '{raw['source']}' not found in declared sources: {sorted(sources)}"
+            raise ValueError(msg)
         checks = [parse_check(c) for c in raw["checks"]]
         suite = SuiteConfig(
             name=path.stem,
@@ -152,7 +155,10 @@ def compile_file(path: str | Path) -> ProveroConfig:
     for raw_suite in raw.get("suites", []):
         source_ref = raw_suite.get("source", {})
         if isinstance(source_ref, str):
-            source = sources.get(source_ref, SourceConfig(type="unknown"))
+            source = sources.get(source_ref)
+            if source is None:
+                msg = f"Source '{source_ref}' not found in declared sources: {sorted(sources)}"
+                raise ValueError(msg)
         else:
             source = SourceConfig(**source_ref)
 

@@ -341,11 +341,16 @@ class Engine:
                 sources[name] = SourceConfig(**src)
 
         if "source" in raw and "checks" in raw:
-            source = (
-                SourceConfig(**raw["source"])
-                if isinstance(raw["source"], dict)
-                else sources.get(raw["source"], SourceConfig(type="unknown"))
-            )
+            if isinstance(raw["source"], dict):
+                source = SourceConfig(**raw["source"])
+            else:
+                source = sources.get(raw["source"])
+                if source is None:
+                    msg = (
+                        f"Source '{raw['source']}' not found in declared sources:"
+                        f" {sorted(sources)}"
+                    )
+                    raise ValueError(msg)
             checks = [parse_check(c) for c in raw["checks"]]
             suite = SuiteConfig(
                 name="default",
@@ -364,7 +369,13 @@ class Engine:
             for raw_suite in raw.get("suites", []):
                 source_ref = raw_suite.get("source", {})
                 if isinstance(source_ref, str):
-                    source = sources.get(source_ref, SourceConfig(type="unknown"))
+                    source = sources.get(source_ref)
+                    if source is None:
+                        msg = (
+                            f"Source '{source_ref}' not found in declared sources:"
+                            f" {sorted(sources)}"
+                        )
+                        raise ValueError(msg)
                 else:
                     source = SourceConfig(**source_ref)
                 if "table" in raw_suite:
@@ -402,9 +413,25 @@ class Engine:
         max_workers: int = 4,
     ) -> list[CheckResult]:
         """Execute all suites and return a flat list of check results."""
+        suite_results = self.run_suites(
+            optimize=optimize, parallel=parallel, max_workers=max_workers
+        )
+        all_results: list[CheckResult] = []
+        for sr in suite_results:
+            all_results.extend(sr.checks)
+        return all_results
+
+    def run_suites(
+        self,
+        *,
+        optimize: bool = True,
+        parallel: bool = False,
+        max_workers: int = 4,
+    ) -> list[SuiteResult]:
+        """Execute all suites and return a list of SuiteResult objects."""
         from provero.connectors.factory import create_connector
 
-        all_results: list[CheckResult] = []
+        results: list[SuiteResult] = []
         for suite in self._config.suites:
             connector = create_connector(suite.source)
             suite_result = run_suite(
@@ -414,5 +441,5 @@ class Engine:
                 parallel=parallel,
                 max_workers=max_workers,
             )
-            all_results.extend(suite_result.checks)
-        return all_results
+            results.append(suite_result)
+        return results

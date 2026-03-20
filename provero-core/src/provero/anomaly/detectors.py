@@ -149,12 +149,9 @@ def detect_iqr(
             data_points=len(values),
         )
 
-    sorted_vals = sorted(values)
-    n = len(sorted_vals)
-    q1_idx = n // 4
-    q3_idx = (3 * n) // 4
-    q1 = sorted_vals[q1_idx]
-    q3 = sorted_vals[q3_idx]
+    quartiles = statistics.quantiles(values, n=4)
+    q1 = quartiles[0]
+    q3 = quartiles[2]
     iqr = q3 - q1
 
     if iqr == 0:

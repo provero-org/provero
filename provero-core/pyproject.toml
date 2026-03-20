@@ -46,7 +46,7 @@ anomaly = ["scipy>=1.11", "numpy>=1.26"]
 prophet = ["prophet>=1.1"]
 server = ["fastapi>=0.110", "uvicorn>=0.29"]
 all = [
-    "provero[dataframe,postgres,snowflake,bigquery,anomaly,server]",
+    "provero[dataframe,polars,postgres,snowflake,bigquery,redshift,anomaly,server]",
 ]
 dev = [
     "pytest>=8.0",

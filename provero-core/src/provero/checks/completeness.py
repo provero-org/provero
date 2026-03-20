@@ -42,7 +42,7 @@ def check_not_null(
         qcol = quote_identifier(col)
         result = connection.execute(
             f"SELECT COUNT(*) as total, "
-            f"COUNT(*) FILTER (WHERE {qcol} IS NULL) as null_count "
+            f"SUM(CASE WHEN {qcol} IS NULL THEN 1 ELSE 0 END) as null_count "
             f"FROM {qtable}"
         )
         row = result[0]
@@ -75,6 +75,25 @@ def check_not_null(
     )
 
 
+def _normalize_min_completeness(value) -> float:
+    """Normalize a min completeness value to a 0-1 ratio.
+
+    Handles:
+    - Strings ending with "%": strip %, convert to float, divide by 100
+    - Numbers > 1: treat as percentage, divide by 100
+    - Numbers <= 1: use as-is (already a ratio)
+    """
+    if isinstance(value, str):
+        value = value.strip()
+        if value.endswith("%"):
+            value = value[:-1].strip()
+        return float(value) / 100 if float(value) > 1 else float(value)
+    value = float(value)
+    if value > 1:
+        return value / 100
+    return value
+
+
 @register_check("completeness")
 def check_completeness(
     connection: Connection,
@@ -83,7 +102,7 @@ def check_completeness(
 ) -> CheckResult:
     """Check that a column meets a minimum completeness threshold."""
     col = check_config.column or ""
-    min_completeness = check_config.params.get("min", 0.95)
+    min_completeness = _normalize_min_completeness(check_config.params.get("min", 0.95))
     qtable = quote_identifier(table)
     qcol = quote_identifier(col)
 

@@ -32,7 +32,11 @@ def check_accepted_values(
     table: str,
     check_config: CheckConfig,
 ) -> CheckResult:
-    """Check that column only contains accepted values."""
+    """Check that column only contains accepted values.
+
+    NULLs are excluded from validation (filtered via WHERE IS NOT NULL).
+    Use the ``not_null`` check separately if NULL values should be flagged.
+    """
     col = check_config.column or ""
     values = check_config.params.get("values", [])
     qtable = quote_identifier(table)
@@ -41,7 +45,7 @@ def check_accepted_values(
 
     result = connection.execute(
         f"SELECT COUNT(*) as total, "
-        f"COUNT(*) FILTER (WHERE {qcol} NOT IN ({placeholders})) as invalid_count "
+        f"SUM(CASE WHEN {qcol} NOT IN ({placeholders}) THEN 1 ELSE 0 END) as invalid_count "
         f"FROM {qtable} WHERE {qcol} IS NOT NULL"
     )
     row = result[0]
@@ -80,6 +84,18 @@ def check_range(
     qtable = quote_identifier(table)
     qcol = quote_identifier(col)
 
+    # Validate that min/max are numeric to prevent SQL injection
+    if min_val is not None:
+        try:
+            min_val = float(min_val)
+        except (ValueError, TypeError):
+            raise ValueError(f"range check: 'min' must be numeric, got {min_val!r}") from None
+    if max_val is not None:
+        try:
+            max_val = float(max_val)
+        except (ValueError, TypeError):
+            raise ValueError(f"range check: 'max' must be numeric, got {max_val!r}") from None
+
     conditions = []
     if min_val is not None:
         conditions.append(f"{qcol} < {min_val}")
@@ -90,7 +106,7 @@ def check_range(
 
     result = connection.execute(
         f"SELECT COUNT(*) as total, "
-        f"COUNT(*) FILTER (WHERE {where}) as out_of_range, "
+        f"SUM(CASE WHEN {where} THEN 1 ELSE 0 END) as out_of_range, "
         f"MIN({qcol}) as min_val, MAX({qcol}) as max_val "
         f"FROM {qtable} WHERE {qcol} IS NOT NULL"
     )
@@ -142,7 +158,8 @@ def check_regex(
     queries = [
         (
             f"SELECT COUNT(*) as total, "
-            f"COUNT(*) FILTER (WHERE NOT regexp_matches({qcol}, '{safe_pattern}')) as non_matching "
+            f"SUM(CASE WHEN NOT regexp_matches({qcol}, '{safe_pattern}') "
+            f"THEN 1 ELSE 0 END) as non_matching "
             f"FROM {qtable} WHERE {qcol} IS NOT NULL"
         ),
         (

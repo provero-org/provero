@@ -24,7 +24,7 @@ Instead of running N separate queries:
 
 The optimizer compiles them into one:
     SELECT
-        COUNT(*) FILTER (WHERE col IS NULL) as col_null_count,
+        SUM(CASE WHEN col IS NULL THEN 1 ELSE 0 END) as col_null_count,
         COUNT(DISTINCT col) as col_distinct_count,
         MIN(col) as col_min,
         MAX(col) as col_max,
@@ -36,6 +36,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from provero.checks.completeness import _normalize_min_completeness
 from provero.connectors.base import Connection
 from provero.core.compiler import CheckConfig
 from provero.core.results import CheckResult, Severity, Status
@@ -84,7 +85,7 @@ def plan_batch(table: str, checks: list[CheckConfig]) -> BatchPlan:
                 qcol = quote_identifier(col)
                 plan.add_metric(
                     alias=f"nn_{col}_null",
-                    expression=f"COUNT(*) FILTER (WHERE {qcol} IS NULL)",
+                    expression=f"SUM(CASE WHEN {qcol} IS NULL THEN 1 ELSE 0 END)",
                     check_config=CheckConfig(
                         check_type="not_null",
                         column=col,
@@ -104,6 +105,12 @@ def plan_batch(table: str, checks: list[CheckConfig]) -> BatchPlan:
         elif check.check_type == "unique":
             col = check.column or (check.columns[0] if check.columns else "")
             qcol = quote_identifier(col)
+            # Add COUNT(col) to exclude NULLs from total (matches uniqueness.py fix)
+            plan.add_metric(
+                alias=f"uniq_{col}_total",
+                expression=f"COUNT({qcol})",
+                check_config=check,
+            )
             plan.add_metric(
                 alias=f"uniq_{col}_distinct",
                 expression=f"COUNT(DISTINCT {qcol})",
@@ -125,6 +132,21 @@ def plan_batch(table: str, checks: list[CheckConfig]) -> BatchPlan:
             )
             min_val = check.params.get("min")
             max_val = check.params.get("max")
+            # Validate that min/max are numeric to prevent SQL injection
+            if min_val is not None:
+                try:
+                    min_val = float(min_val)
+                except (ValueError, TypeError):
+                    raise ValueError(
+                        f"range check: 'min' must be numeric, got {min_val!r}"
+                    ) from None
+            if max_val is not None:
+                try:
+                    max_val = float(max_val)
+                except (ValueError, TypeError):
+                    raise ValueError(
+                        f"range check: 'max' must be numeric, got {max_val!r}"
+                    ) from None
             conditions = []
             if min_val is not None:
                 conditions.append(f"{qcol} < {min_val}")
@@ -134,7 +156,7 @@ def plan_batch(table: str, checks: list[CheckConfig]) -> BatchPlan:
                 where = " OR ".join(conditions)
                 plan.add_metric(
                     alias=f"range_{col}_oor",
-                    expression=f"COUNT(*) FILTER (WHERE {where})",
+                    expression=f"SUM(CASE WHEN {where} THEN 1 ELSE 0 END)",
                     check_config=check,
                 )
 
@@ -153,7 +175,8 @@ def plan_batch(table: str, checks: list[CheckConfig]) -> BatchPlan:
             plan.add_metric(
                 alias=f"av_{col}_invalid",
                 expression=(
-                    f"COUNT(*) FILTER (WHERE {qcol} NOT IN ({placeholders}) AND {qcol} IS NOT NULL)"
+                    f"SUM(CASE WHEN {qcol} NOT IN ({placeholders}) "
+                    f"AND {qcol} IS NOT NULL THEN 1 ELSE 0 END)"
                 ),
                 check_config=check,
             )
@@ -247,7 +270,7 @@ def execute_batch(
 
             elif check.check_type == "completeness":
                 non_null = data.get(f"comp_{col}_nonnull", 0)
-                min_comp = check.params.get("min", 0.95)
+                min_comp = _normalize_min_completeness(check.params.get("min", 0.95))
                 completeness = non_null / total if total > 0 else 0.0
                 severity = Severity(check.severity) if check.severity else Severity.CRITICAL
                 results.append(
@@ -267,7 +290,9 @@ def execute_batch(
 
             elif check.check_type == "unique":
                 distinct = data.get(f"uniq_{col}_distinct", 0)
-                duplicates = total - distinct
+                # Use COUNT(col) instead of COUNT(*) to exclude NULLs
+                col_total = data.get(f"uniq_{col}_total", total)
+                duplicates = col_total - distinct
                 severity = Severity(check.severity) if check.severity else Severity.CRITICAL
                 qtable = quote_identifier(plan.table)
                 qcol = quote_identifier(col)

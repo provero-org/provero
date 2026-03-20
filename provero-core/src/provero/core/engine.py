@@ -50,8 +50,20 @@ def _run_single_check(
     suite_name: str,
     source_type: str,
     run_id: str,
+    connector: Connector | None = None,
 ) -> CheckResult:
-    """Execute a single check and return the result."""
+    """Execute a single check and return the result.
+
+    When ``connector`` is provided (parallel mode), a dedicated connection is
+    created and closed within this function so that each thread owns its own
+    connection. DuckDB (and many other databases) are not thread-safe when
+    sharing a single connection across threads.
+    """
+    own_connection = None
+    if connector is not None:
+        own_connection = connector.connect()
+        connection = own_connection
+
     check_start = time.monotonic()
 
     # Inject suite context for anomaly/row_count_change checks
@@ -120,6 +132,9 @@ def _run_single_check(
             run_id=run_id,
             suite=suite_name,
         )
+    finally:
+        if own_connection is not None and connector is not None:
+            connector.disconnect(own_connection)
 
 
 def _expand_multi_column_checks(checks: list[CheckConfig]) -> list[CheckConfig]:
@@ -238,7 +253,9 @@ def run_suite(
             runnable.append((runner, check_config))
 
     if parallel and len(runnable) > 1:
-        # Parallel execution using ThreadPoolExecutor
+        # Parallel execution using ThreadPoolExecutor.
+        # Each thread gets its own connection via the connector to avoid
+        # sharing a single connection across threads (not thread-safe).
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
                 executor.submit(
@@ -250,6 +267,7 @@ def run_suite(
                     suite.name,
                     suite.source.type,
                     run_id,
+                    connector=connector,
                 ): check_config
                 for runner, check_config in runnable
             }
@@ -344,7 +362,7 @@ class Engine:
             source = (
                 SourceConfig(**raw["source"])
                 if isinstance(raw["source"], dict)
-                else sources.get(raw["source"], SourceConfig(type="unknown"))
+                else sources.get(raw["source"])
             )
             checks = [parse_check(c) for c in raw["checks"]]
             suite = SuiteConfig(
@@ -364,7 +382,7 @@ class Engine:
             for raw_suite in raw.get("suites", []):
                 source_ref = raw_suite.get("source", {})
                 if isinstance(source_ref, str):
-                    source = sources.get(source_ref, SourceConfig(type="unknown"))
+                    source = sources.get(source_ref)
                 else:
                     source = SourceConfig(**source_ref)
                 if "table" in raw_suite:
@@ -416,3 +434,26 @@ class Engine:
             )
             all_results.extend(suite_result.checks)
         return all_results
+
+    def run_suites(
+        self,
+        *,
+        optimize: bool = True,
+        parallel: bool = False,
+        max_workers: int = 4,
+    ) -> list[SuiteResult]:
+        """Execute all suites and return a list of SuiteResult objects."""
+        from provero.connectors.factory import create_connector
+
+        results: list[SuiteResult] = []
+        for suite in self._config.suites:
+            connector = create_connector(suite.source)
+            suite_result = run_suite(
+                suite,
+                connector,
+                optimize=optimize,
+                parallel=parallel,
+                max_workers=max_workers,
+            )
+            results.append(suite_result)
+        return results

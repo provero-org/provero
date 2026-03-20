@@ -37,8 +37,11 @@ def check_unique(
     qtable = quote_identifier(table)
     qcol = quote_identifier(col)
 
+    # Use COUNT(col) instead of COUNT(*) to exclude NULLs from both sides.
+    # COUNT(*) includes NULL rows but COUNT(DISTINCT col) excludes them,
+    # which causes false positives when NULLs are present.
     result = connection.execute(
-        f"SELECT COUNT(*) as total, COUNT(DISTINCT {qcol}) as distinct_count FROM {qtable}"
+        f"SELECT COUNT({qcol}) as total, COUNT(DISTINCT {qcol}) as distinct_count FROM {qtable}"
     )
     row = result[0]
     total = row["total"]

@@ -23,3 +23,7 @@ try:
     __version__ = version("provero")
 except Exception:
     __version__ = "0.1.0"
+
+from provero.core.engine import Engine
+
+__all__ = ["Engine", "__version__"]

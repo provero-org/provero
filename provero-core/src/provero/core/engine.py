@@ -23,11 +23,18 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from provero.checks.registry import get_check_runner
 from provero.connectors.base import Connector
-from provero.core.compiler import CheckConfig, SuiteConfig
+from provero.core.compiler import (
+    CheckConfig,
+    ProveroConfig,
+    SourceConfig,
+    SuiteConfig,
+    compile_file,
+)
 from provero.core.optimizer import execute_batch, plan_batch
 from provero.core.results import CheckResult, Severity, Status, SuiteResult
 
@@ -300,3 +307,112 @@ def run_contract(
     finally:
         connector.disconnect(connection)
     return result
+
+
+class Engine:
+    """High-level API for running Provero data quality checks.
+
+    Loads configuration from a YAML file or a dictionary and executes
+    all suites, returning a flat list of check results.
+
+    Examples::
+
+        engine = Engine("provero.yaml")
+        results = engine.run()
+
+        engine = Engine.from_dict({
+            "source": {"type": "duckdb", "table": "orders"},
+            "checks": [{"not_null": "order_id"}],
+        })
+        results = engine.run()
+    """
+
+    def __init__(self, config_path: str | Path) -> None:
+        self._config = compile_file(config_path)
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any]) -> Engine:
+        """Create an Engine from an in-memory configuration dictionary."""
+        from provero.core.compiler import parse_check
+
+        sources: dict[str, SourceConfig] = {}
+        if "sources" in raw:
+            for name, src in raw["sources"].items():
+                sources[name] = SourceConfig(**src)
+
+        if "source" in raw and "checks" in raw:
+            source = (
+                SourceConfig(**raw["source"])
+                if isinstance(raw["source"], dict)
+                else sources.get(raw["source"], SourceConfig(type="unknown"))
+            )
+            checks = [parse_check(c) for c in raw["checks"]]
+            suite = SuiteConfig(
+                name="default",
+                source=source,
+                checks=checks,
+                tags=raw.get("tags", []),
+                schedule=raw.get("schedule"),
+            )
+            config = ProveroConfig(
+                version=raw.get("version", "1.0"),
+                sources=sources,
+                suites=[suite],
+            )
+        else:
+            suites = []
+            for raw_suite in raw.get("suites", []):
+                source_ref = raw_suite.get("source", {})
+                if isinstance(source_ref, str):
+                    source = sources.get(source_ref, SourceConfig(type="unknown"))
+                else:
+                    source = SourceConfig(**source_ref)
+                if "table" in raw_suite:
+                    source = source.model_copy(update={"table": raw_suite["table"]})
+                checks = [parse_check(c) for c in raw_suite.get("checks", [])]
+                suites.append(
+                    SuiteConfig(
+                        name=raw_suite["name"],
+                        source=source,
+                        checks=checks,
+                        tags=raw_suite.get("tags", []),
+                        schedule=raw_suite.get("schedule"),
+                    )
+                )
+            config = ProveroConfig(
+                version=raw.get("version", "1.0"),
+                sources=sources,
+                suites=suites,
+            )
+
+        instance = cls.__new__(cls)
+        instance._config = config
+        return instance
+
+    @property
+    def config(self) -> ProveroConfig:
+        """Return the parsed configuration."""
+        return self._config
+
+    def run(
+        self,
+        *,
+        optimize: bool = True,
+        parallel: bool = False,
+        max_workers: int = 4,
+    ) -> list[CheckResult]:
+        """Execute all suites and return a flat list of check results."""
+        from provero.connectors.factory import create_connector
+
+        all_results: list[CheckResult] = []
+        for suite in self._config.suites:
+            connector = create_connector(suite.source)
+            suite_result = run_suite(
+                suite,
+                connector,
+                optimize=optimize,
+                parallel=parallel,
+                max_workers=max_workers,
+            )
+            all_results.extend(suite_result.checks)
+        return all_results

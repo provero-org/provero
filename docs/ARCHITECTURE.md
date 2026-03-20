@@ -1250,7 +1250,7 @@ Lessons from Griffin's failure, built into the project DNA:
 
 5. User community
    - Discord/Slack for real-time help
-   - dev@provero.apache.org for decisions (Apache Way)
+   - GitHub Discussions for decisions
    - Blog post for every release
 
 6. Meritocratic path

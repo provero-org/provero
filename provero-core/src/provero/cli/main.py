@@ -36,6 +36,14 @@ from rich.table import Table
 
 from provero import __version__
 
+
+def _version_callback(value: bool) -> None:
+    """Print version and exit when ``--version`` is passed."""
+    if value:
+        typer.echo(f"provero {__version__}")
+        raise typer.Exit()
+
+
 app = typer.Typer(
     name="provero",
     help=(
@@ -90,6 +98,16 @@ def main(
             "--quiet",
             "-q",
             help=("Suppress non-essential output. Only final results and exit codes are emitted."),
+        ),
+    ] = False,
+    version: Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            "-V",
+            help="Show the installed version and exit.",
+            callback=_version_callback,
+            is_eager=True,
         ),
     ] = False,
 ) -> None:

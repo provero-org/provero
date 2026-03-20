@@ -38,6 +38,16 @@ class TestVersion:
         assert result.exit_code == 0
         assert __version__ in result.output
 
+    def test_version_flag(self, cli_runner):
+        result = cli_runner.invoke(app, ["--version"])
+        assert result.exit_code == 0
+        assert __version__ in result.output
+
+    def test_version_short_flag(self, cli_runner):
+        result = cli_runner.invoke(app, ["-V"])
+        assert result.exit_code == 0
+        assert __version__ in result.output
+
 
 class TestInit:
     def test_creates_template(self, cli_runner, tmp_path, monkeypatch):

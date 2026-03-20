@@ -68,7 +68,7 @@ _quiet: bool = False
 
 TEMPLATE = """\
 # provero.yaml - Provero configuration
-# Docs: https://provero.apache.org/docs
+# Docs: https://provero-org.github.io/provero/
 
 source:
   type: duckdb

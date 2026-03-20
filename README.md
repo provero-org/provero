@@ -9,11 +9,6 @@
 
 A vendor-neutral, declarative data quality engine.
 
-<!-- Demo GIF will be generated from docs/demo.tape using charmbracelet/vhs -->
-<!-- To generate: vhs docs/demo.tape -o docs/assets/demo.gif -->
-<p align="center">
-  <img src="docs/assets/demo.gif" alt="Provero demo" width="700">
-</p>
 
 ## Quick Start
 
@@ -94,11 +89,11 @@ Score: 100/100 | 7 passed, 0 failed | 22ms
 | `regex` | Values match a regular expression | `regex: { column: email, pattern: ".+@.+" }` |
 | `type` | Column data type matches expected | `type: { column: amount, expected: numeric }` |
 | `freshness` | Most recent timestamp within threshold | `freshness: { column: updated_at, max_age: 24h }` |
-| `latency` | Time between two timestamp columns | `latency: { start: created_at, end: processed_at, max: 1h }` |
+| `latency` | Time between two timestamp columns | `latency: { source_column: created_at, target_column: processed_at, max_latency: 1h }` |
 | `row_count` | Table row count within bounds | `row_count: { min: 1, max: 1000000 }` |
 | `row_count_change` | Row count change vs previous run | `row_count_change: { max_decrease: 10% }` |
 | `anomaly` | Statistical anomaly detection | `anomaly: { column: amount, method: zscore }` |
-| `custom_sql` | Custom SQL expression returns true | `custom_sql: { sql: "COUNT(*) > 0" }` |
+| `custom_sql` | Custom SQL expression returns true | `custom_sql: "COUNT(*) > 0"` |
 
 ## Configuration
 
@@ -247,6 +242,10 @@ provero contract diff old.yaml new.yaml
 | DuckDB      | Stable   | included                         |
 | PostgreSQL  | Stable   | `pip install provero[postgres]`    |
 | DataFrame   | Stable   | `pip install provero[dataframe]`   |
+| Snowflake   | Beta     | `pip install provero[snowflake]`   |
+| BigQuery    | Beta     | `pip install provero[bigquery]`    |
+| MySQL       | Beta     | `pip install provero[mysql]`       |
+| Redshift    | Beta     | `pip install provero[redshift]`    |
 
 DuckDB supports file expressions: `read_csv('data.csv')`, `read_parquet('*.parquet')`.
 

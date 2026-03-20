@@ -23,7 +23,7 @@ This creates a `provero.yaml` template in the current directory:
 
 ```yaml
 # provero.yaml - Provero configuration
-# Docs: https://provero.apache.org/docs
+# Docs: https://provero-org.github.io/provero/
 
 source:
   type: duckdb

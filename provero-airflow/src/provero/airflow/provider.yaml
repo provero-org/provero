@@ -21,7 +21,7 @@ name: Provero
 description: |
   Data quality checks for Apache Airflow using Provero.
 
-  `Provero <https://provero.org>`__
+  `Provero <https://github.com/provero-org/provero>`__
 
 versions:
   - 0.1.0-dev

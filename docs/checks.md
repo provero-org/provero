@@ -26,8 +26,9 @@ Default severity: `critical`
 
     ```yaml
     checks:
-      - not_null: order_id
-        severity: warning
+      - not_null:
+          column: order_id
+          severity: warning
     ```
 
 ### completeness

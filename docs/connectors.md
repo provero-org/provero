@@ -98,7 +98,7 @@ Requires the `postgres` extra.
 pip install provero[postgres]
 ```
 
-This installs SQLAlchemy and the `psycopg2` driver. Provero uses SQLAlchemy under the hood, so any PostgreSQL-compatible connection string works.
+This installs SQLAlchemy and the `psycopg` (v3) driver. Provero uses SQLAlchemy under the hood, so any PostgreSQL-compatible connection string works.
 
 ### Connection String
 
@@ -171,18 +171,15 @@ from provero.core.engine import Engine
 
 df = pd.read_csv("orders.csv")
 
-engine = Engine.from_dict(
-    config={
-        "source": {"type": "dataframe", "table": "orders"},
-        "checks": [
-            {"not_null": "order_id"},
-            {"unique": "order_id"},
-            {"row_count": {"min": 1}},
-        ],
-    },
-    dataframe=df,
-    table_name="orders",
-)
+connector = DataFrameConnector(df, table_name="orders")
+engine = Engine.from_dict({
+    "source": {"type": "dataframe", "table": "orders"},
+    "checks": [
+        {"not_null": "order_id"},
+        {"unique": "order_id"},
+        {"row_count": {"min": 1}},
+    ],
+})
 results = engine.run()
 ```
 
@@ -197,17 +194,14 @@ from provero.core.engine import Engine
 
 df = pl.read_csv("orders.csv")
 
-engine = Engine.from_dict(
-    config={
-        "source": {"type": "dataframe", "table": "orders"},
-        "checks": [
-            {"not_null": "order_id"},
-            {"row_count": {"min": 1}},
-        ],
-    },
-    dataframe=df,
-    table_name="orders",
-)
+connector = DataFrameConnector(df, table_name="orders")
+engine = Engine.from_dict({
+    "source": {"type": "dataframe", "table": "orders"},
+    "checks": [
+        {"not_null": "order_id"},
+        {"row_count": {"min": 1}},
+    ],
+})
 results = engine.run()
 ```
 

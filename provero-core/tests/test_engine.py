@@ -238,3 +238,47 @@ class TestRunSuiteMixedBatchAndIndividual:
         assert "row_count" in check_types
         assert "custom_sql" in check_types
         assert result.status == Status.PASS
+
+
+class TestEngineClassImport:
+    """Tests for Engine class importability (issue #93)."""
+
+    def test_import_engine_from_core(self):
+        """Engine should be importable from provero.core.engine."""
+        from provero.core.engine import Engine
+
+        assert Engine is not None
+
+    def test_import_engine_from_package(self):
+        """Engine should be importable from the top-level provero package."""
+        from provero import Engine
+
+        assert Engine is not None
+
+    def test_import_public_api(self):
+        """Key public API classes should be importable from provero."""
+        from provero import CheckResult, Engine, Status, SuiteResult, run_suite
+
+        assert all(cls is not None for cls in [Engine, run_suite, CheckResult, SuiteResult, Status])
+
+    def test_engine_from_dict(self):
+        """Engine.from_dict should create a valid Engine instance."""
+        from provero.core.engine import Engine
+
+        engine = Engine.from_dict(
+            {
+                "source": {"type": "duckdb", "table": "orders"},
+                "checks": [{"not_null": "order_id"}],
+            }
+        )
+        assert engine is not None
+        assert len(engine._config.suites) == 1
+        assert engine._config.suites[0].source.type == "duckdb"
+        assert engine._config.suites[0].source.table == "orders"
+
+    def test_engine_from_dict_invalid(self):
+        """Engine.from_dict should raise on invalid config."""
+        from provero.core.engine import Engine
+
+        with pytest.raises(ValueError, match="must contain"):
+            Engine.from_dict({"invalid": "data"})

@@ -23,7 +23,8 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from provero.checks.registry import get_check_runner
 from provero.connectors.base import Connector
@@ -300,3 +301,144 @@ def run_contract(
     finally:
         connector.disconnect(connection)
     return result
+
+
+class Engine:
+    """High-level API for running Provero checks.
+
+    Loads configuration from a YAML file or a dict and executes all
+    suites/contracts against the configured data sources.
+
+    Examples::
+
+        engine = Engine("provero.yaml")
+        results = engine.run()
+
+        engine = Engine.from_dict({
+            "source": {"type": "duckdb", "table": "orders"},
+            "checks": [{"not_null": "order_id"}],
+        })
+        results = engine.run()
+    """
+
+    def __init__(
+        self,
+        config: str | Path,
+        *,
+        optimize: bool = True,
+        parallel: bool = False,
+        max_workers: int = 4,
+    ) -> None:
+        from provero.core.compiler import ProveroConfig, compile_file
+
+        if isinstance(config, (str, Path)):
+            self._config: ProveroConfig = compile_file(config)
+        else:
+            msg = f"Expected a file path (str or Path), got {type(config).__name__}"
+            raise TypeError(msg)
+
+        self._optimize = optimize
+        self._parallel = parallel
+        self._max_workers = max_workers
+
+    @classmethod
+    def from_dict(
+        cls,
+        data: dict[str, Any],
+        *,
+        optimize: bool = True,
+        parallel: bool = False,
+        max_workers: int = 4,
+    ) -> Engine:
+        """Create an Engine from a configuration dict.
+
+        The dict follows the same schema as provero.yaml. Both the simple
+        format (top-level ``source`` + ``checks``) and the full format
+        (``suites`` list) are supported.
+        """
+        from provero.core.compiler import (
+            ProveroConfig,
+            SourceConfig,
+            parse_check,
+        )
+
+        if "source" in data and "checks" in data:
+            source = (
+                SourceConfig(**data["source"])
+                if isinstance(data["source"], dict)
+                else SourceConfig(type="unknown")
+            )
+            checks = [parse_check(c) for c in data["checks"]]
+            suite = SuiteConfig(
+                name=data.get("name", "default"),
+                source=source,
+                checks=checks,
+                tags=data.get("tags", []),
+                schedule=data.get("schedule"),
+            )
+            config = ProveroConfig(
+                version=data.get("version", "1.0"),
+                suites=[suite],
+            )
+        elif "suites" in data:
+            sources: dict[str, SourceConfig] = {}
+            if "sources" in data:
+                for name, src in data["sources"].items():
+                    sources[name] = SourceConfig(**src)
+
+            suites = []
+            for raw_suite in data["suites"]:
+                source_ref = raw_suite.get("source", {})
+                if isinstance(source_ref, str):
+                    source = sources.get(source_ref, SourceConfig(type="unknown"))
+                else:
+                    source = SourceConfig(**source_ref)
+                if "table" in raw_suite:
+                    source = source.model_copy(update={"table": raw_suite["table"]})
+                checks = [parse_check(c) for c in raw_suite.get("checks", [])]
+                suites.append(
+                    SuiteConfig(
+                        name=raw_suite["name"],
+                        source=source,
+                        checks=checks,
+                        tags=raw_suite.get("tags", []),
+                        schedule=raw_suite.get("schedule"),
+                    )
+                )
+            config = ProveroConfig(
+                version=data.get("version", "1.0"),
+                sources=sources,
+                suites=suites,
+            )
+        else:
+            msg = (
+                "Config dict must contain either 'source'+'checks' (simple format) "
+                "or 'suites' (full format)."
+            )
+            raise ValueError(msg)
+
+        engine = cls.__new__(cls)
+        engine._config = config
+        engine._optimize = optimize
+        engine._parallel = parallel
+        engine._max_workers = max_workers
+        return engine
+
+    def run(self) -> list[SuiteResult]:
+        """Execute all configured suites and return results."""
+        from provero.connectors.factory import create_connector
+
+        results: list[SuiteResult] = []
+
+        for suite_config in self._config.suites:
+            connector = create_connector(suite_config.source)
+            result = run_suite(
+                suite_config,
+                connector,
+                optimize=self._optimize,
+                parallel=self._parallel,
+                max_workers=self._max_workers,
+            )
+            results.append(result)
+
+        return results

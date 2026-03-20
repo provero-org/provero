@@ -40,7 +40,7 @@ requires = ["hatchling>=1.21"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build]
-include = ["src/provero/**/*.py", "src/provero/**/*.yaml"]
+include = ["src/provero/airflow/**/*.py", "src/provero/airflow/**/*.yaml"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/provero"]

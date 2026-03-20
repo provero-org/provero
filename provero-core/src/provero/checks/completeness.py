@@ -46,8 +46,8 @@ def check_not_null(
             f"FROM {qtable}"
         )
         row = result[0]
-        null_count = row["null_count"]
-        total = row["total"]
+        null_count = row["null_count"] or 0
+        total = row["total"] or 0
 
         if null_count > 0:
             return CheckResult(

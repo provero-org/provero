@@ -230,6 +230,8 @@ def execute_batch(
         data = rows[0] if rows else {}
 
         total = data.get("_total") or data.get("_row_count") or 0
+        # SUM/COUNT on empty tables may return None; coerce all values.
+        data = {k: (v if v is not None else 0) for k, v in data.items()}
 
         # Process each check from the batch results
         processed_checks: set[str] = set()

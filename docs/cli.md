@@ -35,7 +35,7 @@ provero run [OPTIONS]
 | `--config` | `-c` | `provero.yaml` | Config file path |
 | `--suite` | `-s` | | Run a specific suite only |
 | `--tag` | `-t` | | Run suites matching this tag |
-| `--format` | `-f` | `table` | Output format: `table`, `json` |
+| `--format` | `-f` | `table` | Output format: `table`, `json`, `csv` |
 | `--no-store` | | `false` | Don't persist results to SQLite |
 | `--no-optimize` | | `false` | Disable SQL batching |
 | `--no-alerts` | | `false` | Don't send webhook alerts |

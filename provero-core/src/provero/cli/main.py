@@ -181,12 +181,19 @@ def init(
         )
 
         source = SourceConfig(type=source_type, table=table_name)
-        connector = create_connector(source)
-        connection = connector.connect()
+        try:
+            connector = create_connector(source)
+            connection = connector.connect()
+        except Exception as e:
+            console.print(f"[red]Cannot connect to {source_type}: {e}[/red]")
+            raise typer.Exit(1) from None
         try:
             profile = profile_table(connection, table_name)
-        finally:
+        except Exception as e:
             connector.disconnect(connection)
+            console.print(f"[red]Cannot profile table '{table_name}': {e}[/red]")
+            raise typer.Exit(1) from None
+        connector.disconnect(connection)
 
         checks = suggest_checks(profile)
         yaml_content = checks_to_yaml(checks, source_type, table_name)

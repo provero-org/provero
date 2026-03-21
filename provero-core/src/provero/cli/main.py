@@ -1080,5 +1080,72 @@ def import_soda(
         typer.echo(provero_yaml)
 
 
+# Export subcommand
+export_app = typer.Typer(
+    name="export",
+    help=(
+        "Export Provero checks to other formats.\n\n"
+        "Convert your provero.yaml definitions into configuration files "
+        "compatible with other data quality tools."
+    ),
+    no_args_is_help=True,
+)
+app.add_typer(export_app, name="export")
+
+
+@export_app.command("dbt")
+def export_dbt(
+    config_path: Annotated[
+        Path | None,
+        typer.Argument(help="Path to config file (alternative to -c)."),
+    ] = None,
+    config: Annotated[
+        Path,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to the Provero YAML configuration file. Defaults to provero.yaml.",
+        ),
+    ] = Path("provero.yaml"),
+    output: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Write output to a file instead of stdout.",
+        ),
+    ] = None,
+) -> None:
+    """Export Provero checks as dbt schema.yml test definitions.
+
+    Reads a provero.yaml file and generates the equivalent dbt schema.yml
+    with column-level tests. Checks without a direct dbt equivalent are
+    included as YAML comments.
+
+    Examples:
+
+        provero export dbt
+
+        provero export dbt -c my_checks.yaml -o schema.yml
+    """
+    config = config_path or config
+    if not config.exists():
+        console.print(f"[red]Config file not found: {config}[/red]")
+        console.print("Run 'provero init' to create one.")
+        raise typer.Exit(1)
+
+    from provero.core.compiler import compile_file
+    from provero.exporters.dbt import export_config
+
+    provero_config = compile_file(config)
+    result = export_config(provero_config)
+
+    if output:
+        output.write_text(result)
+        _echo(f"[green]dbt schema written to {output}[/green]")
+    else:
+        typer.echo(result, nl=False)
+
+
 if __name__ == "__main__":
     app()

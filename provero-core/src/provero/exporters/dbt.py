@@ -104,8 +104,8 @@ def _map_check_to_dbt(
     return None, None, f"# {detail}: no direct dbt equivalent"
 
 
-def export_suite(suite: SuiteConfig) -> dict[str, Any]:
-    """Convert a single SuiteConfig into a dbt model entry dict."""
+def export_suite(suite: SuiteConfig) -> tuple[dict[str, Any], list[str]]:
+    """Convert a single SuiteConfig into a dbt model entry dict and comments."""
     column_tests: dict[str, list[str | dict[str, Any]]] = defaultdict(list)
     comments: list[str] = []
 
@@ -116,11 +116,11 @@ def export_suite(suite: SuiteConfig) -> dict[str, Any]:
                 column_tests[col].append(check.check_type)
             continue
 
-        col, dbt_test, comment = _map_check_to_dbt(check)
+        mapped_col, dbt_test, comment = _map_check_to_dbt(check)
         if comment:
             comments.append(comment)
-        if col and dbt_test:
-            column_tests[col].append(dbt_test)
+        if mapped_col and dbt_test:
+            column_tests[mapped_col].append(dbt_test)
 
     model: dict[str, Any] = {"name": suite.name}
 

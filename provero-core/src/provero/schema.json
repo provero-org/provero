@@ -120,7 +120,7 @@
               "required": ["column"],
               "properties": {
                 "column": { "type": "string" },
-                "min": { "type": "number", "minimum": 0, "maximum": 1 },
+                "min": { "oneOf": [{ "type": "number" }, { "type": "string", "pattern": "^\\d+%?$" }] },
                 "severity": { "$ref": "#/$defs/severity" }
               }
             }

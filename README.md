@@ -93,7 +93,7 @@ Score: 100/100 | 7 passed, 0 failed | 22ms
 | `row_count` | Table row count within bounds | `row_count: { min: 1, max: 1000000 }` |
 | `row_count_change` | Row count change vs previous run | `row_count_change: { max_decrease: 10% }` |
 | `anomaly` | Statistical anomaly detection | `anomaly: { column: amount, method: zscore }` |
-| `custom_sql` | Custom SQL expression returns true | `custom_sql: "COUNT(*) > 0"` |
+| `custom_sql` | Custom SQL query returns truthy value | `custom_sql: "SELECT COUNT(*) > 0 FROM orders"` |
 
 ## Configuration
 
@@ -279,6 +279,10 @@ results = engine.run()
 ```
 
 ## Airflow Integration
+
+```bash
+pip install provero-airflow
+```
 
 ```python
 from provero.airflow.operators import ProveroCheckOperator

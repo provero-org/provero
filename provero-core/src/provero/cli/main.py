@@ -423,9 +423,7 @@ def _parse_interval(s: str) -> int:
     pattern = re.compile(r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$")
     match = pattern.fullmatch(s)
     if not match or not any(match.groups()):
-        raise ValueError(
-            f"Invalid interval '{s}'. Use formats like 30s, 5m, 1h, or 1h30m."
-        )
+        raise ValueError(f"Invalid interval '{s}'. Use formats like 30s, 5m, 1h, or 1h30m.")
 
     hours = int(match.group(1) or 0)
     minutes = int(match.group(2) or 0)
@@ -580,8 +578,7 @@ def watch(
                     _echo(f"[bold]Run #{iteration} at {now}[/bold]")
                 else:
                     _echo(
-                        f"[bold]Run #{iteration} at {now}[/bold] "
-                        f"[dim](next in {next_label})[/dim]"
+                        f"[bold]Run #{iteration} at {now}[/bold] [dim](next in {next_label})[/dim]"
                     )
 
             exit_code = 0

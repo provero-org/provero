@@ -77,18 +77,14 @@ class TestWatchCommand:
 
     def test_missing_config(self, cli_runner, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        result = cli_runner.invoke(
-            app, ["watch", "--config", "nonexistent.yaml"]
-        )
+        result = cli_runner.invoke(app, ["watch", "--config", "nonexistent.yaml"])
         assert result.exit_code == 1
         assert "not found" in result.output
 
     def test_invalid_interval(self, cli_runner, duckdb_config_file, monkeypatch, tmp_path):
         monkeypatch.chdir(tmp_path)
         config_path = str(duckdb_config_file["config_path"])
-        result = cli_runner.invoke(
-            app, ["watch", "--config", config_path, "--interval", "bad"]
-        )
+        result = cli_runner.invoke(app, ["watch", "--config", config_path, "--interval", "bad"])
         assert result.exit_code == 1
         assert "Invalid interval" in result.output
 
@@ -109,10 +105,13 @@ class TestWatchCommand:
             app,
             [
                 "watch",
-                "--config", config_path,
+                "--config",
+                config_path,
                 "--no-store",
-                "--count", "2",
-                "--interval", "1s",
+                "--count",
+                "2",
+                "--interval",
+                "1s",
             ],
         )
         assert result.exit_code == 0
@@ -126,11 +125,15 @@ class TestWatchCommand:
             app,
             [
                 "watch",
-                "--config", config_path,
+                "--config",
+                config_path,
                 "--no-store",
-                "--count", "2",
-                "--interval", "1s",
-                "--format", "json",
+                "--count",
+                "2",
+                "--interval",
+                "1s",
+                "--format",
+                "json",
             ],
         )
         assert result.exit_code == 0
@@ -151,18 +154,18 @@ class TestWatchCommand:
                 app,
                 [
                     "watch",
-                    "--config", config_path,
+                    "--config",
+                    config_path,
                     "--no-store",
-                    "--interval", "5m",
+                    "--interval",
+                    "5m",
                 ],
             )
         # Should exit gracefully, not crash
         assert result.exit_code == 0
         assert "Watch stopped" in result.output
 
-    def test_exit_code_1_on_failure(
-        self, cli_runner, duckdb_file, tmp_path, monkeypatch
-    ):
+    def test_exit_code_1_on_failure(self, cli_runner, duckdb_file, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         config = tmp_path / "fail.yaml"
         config.write_text(
@@ -211,11 +214,15 @@ class TestWatchCommand:
             app,
             [
                 "watch",
-                "--config", str(config),
+                "--config",
+                str(config),
                 "--no-store",
-                "--count", "1",
-                "--suite", "orders_suite",
-                "--format", "json",
+                "--count",
+                "1",
+                "--suite",
+                "orders_suite",
+                "--format",
+                "json",
             ],
         )
         assert result.exit_code == 0

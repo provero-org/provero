@@ -66,6 +66,7 @@ def _load_builtins() -> None:
     import provero.checks.completeness
     import provero.checks.custom
     import provero.checks.freshness
+    import provero.checks.referential
     import provero.checks.uniqueness
     import provero.checks.validity
     import provero.checks.volume  # noqa: F401

@@ -1,6 +1,6 @@
 # Check Types
 
-Provero includes 14 built-in check types organized by category. Each check can be written in shorthand or expanded YAML form.
+Provero includes 15 built-in check types organized by category. Each check can be written in shorthand or expanded YAML form.
 
 ## Completeness
 
@@ -275,6 +275,28 @@ checks:
 | `iqr` | Interquartile Range | Skewed distributions |
 
 All methods are implemented using Python stdlib only (no scipy dependency). Anomaly detection uses the result store to compare current values against historical data. Run `provero run` regularly to build up the baseline.
+
+## Referential Integrity
+
+### referential_integrity
+
+Validates that all non-null values in a column exist in a reference table's column (foreign key validation). Orphaned rows where the FK value does not exist in the referenced table cause the check to fail. NULL values are excluded, as they represent optional relationships.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `column` | string | Yes | FK column in the source table |
+| `reference_table` | string | Yes | Referenced table name |
+| `reference_column` | string | Yes | Referenced column (usually the primary key) |
+
+Default severity: `critical`
+
+```yaml
+checks:
+  - referential_integrity:
+      column: customer_id
+      reference_table: customers
+      reference_column: id
+```
 
 ## Custom
 

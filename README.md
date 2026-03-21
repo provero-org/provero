@@ -62,8 +62,8 @@ Score: 100/100 | 7 passed, 0 failed | 22ms
 
 ## Features
 
-- **14 check types**: not_null, unique, unique_combination, completeness, accepted_values,
-  range, regex, type, freshness, latency, row_count, row_count_change, anomaly, custom_sql
+- **15 check types**: not_null, unique, unique_combination, completeness, accepted_values,
+  range, regex, type, freshness, latency, row_count, row_count_change, anomaly, custom_sql, referential_integrity
 - **3 connectors**: DuckDB (files + in-memory), PostgreSQL, Pandas/Polars DataFrame
 - **SQL batch optimizer**: compiles N checks into 1 query
 - **Data contracts**: schema validation, SLA enforcement, contract diff
@@ -94,6 +94,7 @@ Score: 100/100 | 7 passed, 0 failed | 22ms
 | `row_count_change` | Row count change vs previous run | `row_count_change: { max_decrease: 10% }` |
 | `anomaly` | Statistical anomaly detection | `anomaly: { column: amount, method: zscore }` |
 | `custom_sql` | Custom SQL query returns truthy value | `custom_sql: "SELECT COUNT(*) > 0 FROM orders"` |
+| `referential_integrity` | FK values exist in reference table | `referential_integrity: { column: customer_id, reference_table: customers, reference_column: id }` |
 
 ## Configuration
 
@@ -122,6 +123,10 @@ checks:
       method: zscore               # zscore, mad, iqr
       threshold: 3.0
       window: 30                   # lookback window in days
+  - referential_integrity:
+      column: customer_id
+      reference_table: customers
+      reference_column: id
 
 # Severity levels: info, warning, critical, blocker
 # Blocker checks cause a non-zero exit code

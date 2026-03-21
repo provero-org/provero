@@ -44,9 +44,7 @@ def duckdb_emails():
 
 def _insert(conn, rows: list[tuple]):
     for row in rows:
-        conn._conn.execute(
-            "INSERT INTO emails VALUES (?, ?)", row
-        )
+        conn._conn.execute("INSERT INTO emails VALUES (?, ?)", row)
 
 
 def _run_check(conn, column="email", severity=None):
@@ -61,56 +59,74 @@ def _run_check(conn, column="email", severity=None):
 
 class TestEmailValidation:
     def test_valid_emails_pass(self, duckdb_emails):
-        _insert(duckdb_emails, [
-            (1, "alice@example.com"),
-            (2, "bob.smith@test.co.uk"),
-            (3, "user+tag@domain.org"),
-            (4, "name%special@sub.domain.com"),
-        ])
+        _insert(
+            duckdb_emails,
+            [
+                (1, "alice@example.com"),
+                (2, "bob.smith@test.co.uk"),
+                (3, "user+tag@domain.org"),
+                (4, "name%special@sub.domain.com"),
+            ],
+        )
         result = _run_check(duckdb_emails)
         assert result.status == Status.PASS
         assert result.failing_rows == 0
 
     def test_invalid_no_at(self, duckdb_emails):
-        _insert(duckdb_emails, [
-            (1, "alice@example.com"),
-            (2, "invalid-email"),
-        ])
+        _insert(
+            duckdb_emails,
+            [
+                (1, "alice@example.com"),
+                (2, "invalid-email"),
+            ],
+        )
         result = _run_check(duckdb_emails)
         assert result.status == Status.FAIL
         assert result.failing_rows == 1
 
     def test_invalid_no_domain(self, duckdb_emails):
-        _insert(duckdb_emails, [
-            (1, "user@"),
-        ])
+        _insert(
+            duckdb_emails,
+            [
+                (1, "user@"),
+            ],
+        )
         result = _run_check(duckdb_emails)
         assert result.status == Status.FAIL
         assert result.failing_rows == 1
 
     def test_invalid_no_tld(self, duckdb_emails):
-        _insert(duckdb_emails, [
-            (1, "user@domain"),
-        ])
+        _insert(
+            duckdb_emails,
+            [
+                (1, "user@domain"),
+            ],
+        )
         result = _run_check(duckdb_emails)
         assert result.status == Status.FAIL
         assert result.failing_rows == 1
 
     def test_invalid_spaces(self, duckdb_emails):
-        _insert(duckdb_emails, [
-            (1, "user @example.com"),
-            (2, "user@ example.com"),
-            (3, " user@example.com"),
-        ])
+        _insert(
+            duckdb_emails,
+            [
+                (1, "user @example.com"),
+                (2, "user@ example.com"),
+                (3, " user@example.com"),
+            ],
+        )
         result = _run_check(duckdb_emails)
         assert result.status == Status.FAIL
         assert result.failing_rows == 3
 
     def test_nulls_excluded(self, duckdb_emails):
         """NULLs should not count as invalid emails."""
-        _insert(duckdb_emails, [
-            (1, "valid@example.com"),
-        ])
+        _insert(
+            duckdb_emails,
+            [
+                (1, "valid@example.com"),
+            ],
+        )
         duckdb_emails._conn.execute("INSERT INTO emails VALUES (2, NULL)")
         result = _run_check(duckdb_emails)
         assert result.status == Status.PASS
@@ -142,13 +158,16 @@ class TestEmailValidation:
         assert result.expected_value == "valid email addresses"
 
     def test_mixed_valid_and_invalid(self, duckdb_emails):
-        _insert(duckdb_emails, [
-            (1, "good@example.com"),
-            (2, "bad-email"),
-            (3, "also.good@test.org"),
-            (4, "@nodomain.com"),
-            (5, "noat"),
-        ])
+        _insert(
+            duckdb_emails,
+            [
+                (1, "good@example.com"),
+                (2, "bad-email"),
+                (3, "also.good@test.org"),
+                (4, "@nodomain.com"),
+                (5, "noat"),
+            ],
+        )
         result = _run_check(duckdb_emails)
         assert result.status == Status.FAIL
         assert result.failing_rows == 3

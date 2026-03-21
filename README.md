@@ -9,6 +9,9 @@
 
 A vendor-neutral, declarative data quality engine.
 
+<p align="center">
+  <img src="docs/assets/demo.svg" alt="Provero demo" width="720">
+</p>
 
 ## Quick Start
 

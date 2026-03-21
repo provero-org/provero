@@ -143,6 +143,24 @@ checks:
       pattern: "^[^@]+@[^@]+\\.[^@]+$"
 ```
 
+### email_validation
+
+Validates that column values are valid email addresses using a standard email regex pattern.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `column` | string | Yes | Column to check |
+
+Works across databases: uses `regexp_matches()` on DuckDB, `~` on PostgreSQL, and `REGEXP` on MySQL/SQLite.
+
+Default severity: `warning`
+
+```yaml
+checks:
+  - email_validation:
+      column: email
+```
+
 ### type
 
 Checks that a column's data type matches the expected type.

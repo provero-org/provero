@@ -62,8 +62,8 @@ Score: 100/100 | 7 passed, 0 failed | 22ms
 
 ## Features
 
-- **15 check types**: not_null, unique, unique_combination, completeness, accepted_values,
-  range, regex, type, freshness, latency, row_count, row_count_change, anomaly, custom_sql, referential_integrity
+- **16 check types**: not_null, unique, unique_combination, completeness, accepted_values,
+  range, regex, email_validation, type, freshness, latency, row_count, row_count_change, anomaly, custom_sql, referential_integrity
 - **3 connectors**: DuckDB (files + in-memory), PostgreSQL, Pandas/Polars DataFrame
 - **SQL batch optimizer**: compiles N checks into 1 query
 - **Data contracts**: schema validation, SLA enforcement, contract diff
@@ -87,6 +87,7 @@ Score: 100/100 | 7 passed, 0 failed | 22ms
 | `accepted_values` | Column values are within allowed set | `accepted_values: { column: status, values: [a, b] }` |
 | `range` | Numeric values within min/max bounds | `range: { column: amount, min: 0, max: 100000 }` |
 | `regex` | Values match a regular expression | `regex: { column: email, pattern: ".+@.+" }` |
+| `email_validation` | Values are valid email addresses | `email_validation: { column: email }` |
 | `type` | Column data type matches expected | `type: { column: amount, expected: numeric }` |
 | `freshness` | Most recent timestamp within threshold | `freshness: { column: updated_at, max_age: 24h }` |
 | `latency` | Time between two timestamp columns | `latency: { source_column: created_at, target_column: processed_at, max_latency: 1h }` |

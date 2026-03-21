@@ -269,6 +269,20 @@
         {
           "type": "object",
           "properties": {
+            "email_validation": {
+              "type": "object",
+              "required": ["column"],
+              "properties": {
+                "column": { "type": "string" },
+                "severity": { "$ref": "#/$defs/severity" }
+              }
+            }
+          },
+          "required": ["email_validation"]
+        },
+        {
+          "type": "object",
+          "properties": {
             "custom_sql": {
               "oneOf": [
                 { "type": "string", "description": "SQL query returning boolean" },

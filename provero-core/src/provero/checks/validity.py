@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Validity checks: accepted_values, range, regex, type."""
+"""Validity checks: accepted_values, range, regex, email_validation, type."""
 
 from __future__ import annotations
 
@@ -209,6 +209,89 @@ def check_regex(
         expected_value=f"matches /{pattern}/",
         row_count=total,
         failing_rows=non_matching,
+    )
+
+
+# Email regex pattern: local@domain.tld
+_EMAIL_PATTERN = r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$"
+
+
+@register_check("email_validation")
+def check_email_validation(
+    connection: Connection,
+    table: str,
+    check_config: CheckConfig,
+) -> CheckResult:
+    """Check that column values are valid email addresses.
+
+    Uses the same cross-database regex approach as the ``regex`` check.
+    NULLs are excluded from validation (filtered via WHERE IS NOT NULL).
+    """
+    col = check_config.column or ""
+    qtable = quote_identifier(table)
+    qcol = quote_identifier(col)
+    safe_pattern = quote_value(_EMAIL_PATTERN)
+    severity = Severity(check_config.severity) if check_config.severity else Severity.WARNING
+
+    # Try DuckDB syntax first, then PostgreSQL ~, then MySQL/SQLite REGEXP
+    queries = [
+        (
+            f"SELECT COUNT(*) as total, "
+            f"SUM(CASE WHEN NOT regexp_matches({qcol}, '{safe_pattern}') "
+            f"THEN 1 ELSE 0 END) as invalid_count "
+            f"FROM {qtable} WHERE {qcol} IS NOT NULL"
+        ),
+        (
+            f"SELECT COUNT(*) as total, "
+            f"SUM(CASE WHEN NOT ({qcol} ~ '{safe_pattern}') THEN 1 ELSE 0 END) as invalid_count "
+            f"FROM {qtable} WHERE {qcol} IS NOT NULL"
+        ),
+        (
+            f"SELECT COUNT(*) as total, "
+            f"SUM(CASE WHEN NOT ({qcol} REGEXP '{safe_pattern}') "
+            f"THEN 1 ELSE 0 END) as invalid_count "
+            f"FROM {qtable} WHERE {qcol} IS NOT NULL"
+        ),
+    ]
+
+    row = None
+    for query in queries:
+        try:
+            result = connection.execute(query)
+            row = result[0]
+            break
+        except Exception:
+            continue
+
+    if row is None:
+        return CheckResult(
+            check_name=f"email_validation:{col}",
+            check_type="email_validation",
+            status=Status.ERROR,
+            severity=severity,
+            column=col,
+            observed_value="Regex not supported by this database. "
+            "DuckDB (regexp_matches), PostgreSQL (~), and MySQL/SQLite (REGEXP) are supported.",
+            expected_value="valid email addresses",
+        )
+
+    total = row["total"]
+    invalid = int(row["invalid_count"] or 0)
+
+    return CheckResult(
+        check_name=f"email_validation:{col}",
+        check_type="email_validation",
+        status=Status.PASS if invalid == 0 else Status.FAIL,
+        severity=severity,
+        column=col,
+        observed_value=f"{invalid} invalid emails",
+        expected_value="valid email addresses",
+        row_count=total,
+        failing_rows=invalid,
+        failing_rows_query=(
+            f"SELECT {qcol} FROM {qtable} WHERE {qcol} IS NOT NULL "
+            f"AND NOT regexp_matches({qcol}, '{safe_pattern}')"
+        ),
     )
 
 

@@ -285,6 +285,22 @@
             }
           },
           "required": ["custom_sql"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "referential_integrity": {
+              "type": "object",
+              "required": ["column", "reference_table", "reference_column"],
+              "properties": {
+                "column": { "type": "string", "description": "FK column in the source table" },
+                "reference_table": { "type": "string", "description": "Referenced table" },
+                "reference_column": { "type": "string", "description": "Referenced column (usually the PK)" },
+                "severity": { "$ref": "#/$defs/severity" }
+              }
+            }
+          },
+          "required": ["referential_integrity"]
         }
       ]
     },

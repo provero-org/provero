@@ -23,15 +23,20 @@ import re
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*$")
 
+# Only these DuckDB table-functions are allowed as expressions in FROM clauses.
+_SAFE_EXPRESSIONS = re.compile(
+    r"^(read_csv|read_parquet|read_json|read_json_auto)\s*\(", re.IGNORECASE
+)
+
 
 def is_expression(name: str) -> bool:
-    """Check if *name* is a SQL expression rather than a plain identifier.
+    """Check if *name* is a safe DuckDB table-function expression.
 
-    DuckDB supports table-function expressions like ``read_csv('file.csv')``
-    and ``read_parquet('*.parquet')`` in the FROM clause.  These are not
-    identifiers and must not be quoted or validated as such.
+    Only ``read_csv``, ``read_parquet``, ``read_json``, and
+    ``read_json_auto`` are allowed.  Arbitrary expressions containing
+    parentheses are rejected to prevent SQL injection.
     """
-    return "(" in name
+    return bool(_SAFE_EXPRESSIONS.match(name))
 
 
 def quote_identifier(name: str) -> str:

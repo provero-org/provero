@@ -179,6 +179,28 @@ def run_suite(
     results: list[CheckResult] = []
     connection = connector.connect()
 
+    try:
+        return _run_suite_inner(
+            suite, connector, connection, optimize, parallel, max_workers,
+            run_id, suite_start, started_at, results,
+        )
+    finally:
+        connector.disconnect(connection)
+
+
+def _run_suite_inner(
+    suite: SuiteConfig,
+    connector: Connector,
+    connection,
+    optimize: bool,
+    parallel: bool,
+    max_workers: int,
+    run_id: str,
+    suite_start: float,
+    started_at,
+    results: list[CheckResult],
+) -> SuiteResult:
+    """Inner implementation of run_suite, always called within try/finally."""
     expanded_checks = _expand_multi_column_checks(suite.checks)
 
     if optimize:
@@ -302,8 +324,6 @@ def run_suite(
                 run_id,
             )
             results.append(result)
-
-    connector.disconnect(connection)
 
     total_ms = int((time.monotonic() - suite_start) * 1000)
     suite_result = SuiteResult(

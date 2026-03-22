@@ -52,7 +52,7 @@ jobs:
             if ! head -5 "$f" | grep -q "Licensed to the Apache Software Foundation"; then
               missing+=("$f")
             fi
-          done < <(find provero-core/src/provero provero-airflow/src/provero -name "*.py" -type f)
+          done < <(find provero-core/src/provero provero-airflow/src/provero provero-flyte/src/provero -name "*.py" -type f)
           if [ ${#missing[@]} -ne 0 ]; then
             echo "Files missing Apache license header:"
             printf '  %s\n' "${missing[@]}"

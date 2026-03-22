@@ -43,6 +43,11 @@ from provero.core.results import CheckResult, Severity, Status
 from provero.core.sql import quote_identifier, quote_value
 
 
+def _safe_alias(col: str) -> str:
+    """Sanitize a column name for use as a SQL alias."""
+    return col.replace(".", "_").replace(" ", "_")
+
+
 @dataclass
 class BatchedMetric:
     """A single SQL expression to include in the batched query."""
@@ -84,7 +89,7 @@ def plan_batch(table: str, checks: list[CheckConfig]) -> BatchPlan:
             for col in columns:
                 qcol = quote_identifier(col)
                 plan.add_metric(
-                    alias=f"nn_{col}_null",
+                    alias=f"nn_{_safe_alias(col)}_null",
                     expression=f"SUM(CASE WHEN {qcol} IS NULL THEN 1 ELSE 0 END)",
                     check_config=CheckConfig(
                         check_type="not_null",
@@ -97,7 +102,7 @@ def plan_batch(table: str, checks: list[CheckConfig]) -> BatchPlan:
             col = check.column or ""
             qcol = quote_identifier(col)
             plan.add_metric(
-                alias=f"comp_{col}_nonnull",
+                alias=f"comp_{_safe_alias(col)}_nonnull",
                 expression=f"COUNT({qcol})",
                 check_config=check,
             )
@@ -107,12 +112,12 @@ def plan_batch(table: str, checks: list[CheckConfig]) -> BatchPlan:
             qcol = quote_identifier(col)
             # Add COUNT(col) to exclude NULLs from total (matches uniqueness.py fix)
             plan.add_metric(
-                alias=f"uniq_{col}_total",
+                alias=f"uniq_{_safe_alias(col)}_total",
                 expression=f"COUNT({qcol})",
                 check_config=check,
             )
             plan.add_metric(
-                alias=f"uniq_{col}_distinct",
+                alias=f"uniq_{_safe_alias(col)}_distinct",
                 expression=f"COUNT(DISTINCT {qcol})",
                 check_config=check,
             )
@@ -121,12 +126,12 @@ def plan_batch(table: str, checks: list[CheckConfig]) -> BatchPlan:
             col = check.column or ""
             qcol = quote_identifier(col)
             plan.add_metric(
-                alias=f"range_{col}_min",
+                alias=f"range_{_safe_alias(col)}_min",
                 expression=f"MIN({qcol})",
                 check_config=check,
             )
             plan.add_metric(
-                alias=f"range_{col}_max",
+                alias=f"range_{_safe_alias(col)}_max",
                 expression=f"MAX({qcol})",
                 check_config=check,
             )
@@ -155,7 +160,7 @@ def plan_batch(table: str, checks: list[CheckConfig]) -> BatchPlan:
             if conditions:
                 where = " OR ".join(conditions)
                 plan.add_metric(
-                    alias=f"range_{col}_oor",
+                    alias=f"range_{_safe_alias(col)}_oor",
                     expression=f"SUM(CASE WHEN {where} THEN 1 ELSE 0 END)",
                     check_config=check,
                 )
@@ -173,7 +178,7 @@ def plan_batch(table: str, checks: list[CheckConfig]) -> BatchPlan:
             values = check.params.get("values", [])
             placeholders = ", ".join(f"'{quote_value(str(v))}'" for v in values)
             plan.add_metric(
-                alias=f"av_{col}_invalid",
+                alias=f"av_{_safe_alias(col)}_invalid",
                 expression=(
                     f"SUM(CASE WHEN {qcol} NOT IN ({placeholders}) "
                     f"AND {qcol} IS NOT NULL THEN 1 ELSE 0 END)"
@@ -248,7 +253,7 @@ def execute_batch(
             col = check.column or ""
 
             if check.check_type == "not_null":
-                null_count = data.get(f"nn_{col}_null", 0)
+                null_count = data.get(f"nn_{_safe_alias(col)}_null", 0)
                 severity = Severity(check.severity) if check.severity else Severity.CRITICAL
                 qtable = quote_identifier(plan.table)
                 qcol = quote_identifier(col)
@@ -271,7 +276,7 @@ def execute_batch(
                 processed_checks.add(check_key)
 
             elif check.check_type == "completeness":
-                non_null = data.get(f"comp_{col}_nonnull", 0)
+                non_null = data.get(f"comp_{_safe_alias(col)}_nonnull", 0)
                 min_comp = _normalize_min_completeness(check.params.get("min", 0.95))
                 completeness = non_null / total if total > 0 else 0.0
                 severity = Severity(check.severity) if check.severity else Severity.CRITICAL
@@ -291,9 +296,9 @@ def execute_batch(
                 processed_checks.add(check_key)
 
             elif check.check_type == "unique":
-                distinct = data.get(f"uniq_{col}_distinct", 0)
+                distinct = data.get(f"uniq_{_safe_alias(col)}_distinct", 0)
                 # Use COUNT(col) instead of COUNT(*) to exclude NULLs
-                col_total = data.get(f"uniq_{col}_total", total)
+                col_total = data.get(f"uniq_{_safe_alias(col)}_total", total)
                 duplicates = col_total - distinct
                 severity = Severity(check.severity) if check.severity else Severity.CRITICAL
                 qtable = quote_identifier(plan.table)
@@ -320,9 +325,9 @@ def execute_batch(
                 processed_checks.add(check_key)
 
             elif check.check_type == "range":
-                min_val = data.get(f"range_{col}_min")
-                max_val = data.get(f"range_{col}_max")
-                out_of_range = data.get(f"range_{col}_oor", 0)
+                min_val = data.get(f"range_{_safe_alias(col)}_min")
+                max_val = data.get(f"range_{_safe_alias(col)}_max")
+                out_of_range = data.get(f"range_{_safe_alias(col)}_oor", 0)
                 expected_parts = []
                 if check.params.get("min") is not None:
                     expected_parts.append(f"min={check.params['min']}")
@@ -371,7 +376,7 @@ def execute_batch(
                 processed_checks.add(check_key)
 
             elif check.check_type == "accepted_values":
-                invalid = data.get(f"av_{col}_invalid", 0)
+                invalid = data.get(f"av_{_safe_alias(col)}_invalid", 0)
                 values = check.params.get("values", [])
                 severity = Severity(check.severity) if check.severity else Severity.CRITICAL
                 results.append(

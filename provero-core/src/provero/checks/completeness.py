@@ -35,6 +35,14 @@ def check_not_null(
     """Check that column(s) have no null values."""
     columns = check_config.columns or ([check_config.column] if check_config.column else [])
 
+    if not columns:
+        return CheckResult(
+            check_name="not_null",
+            check_type="not_null",
+            status=Status.ERROR,
+            observed_value="No column specified for not_null check",
+        )
+
     severity = Severity(check_config.severity) if check_config.severity else Severity.CRITICAL
 
     qtable = quote_identifier(table)
@@ -86,12 +94,14 @@ def _normalize_min_completeness(value) -> float:
     if isinstance(value, str):
         value = value.strip()
         if value.endswith("%"):
-            value = value[:-1].strip()
-        return float(value) / 100 if float(value) > 1 else float(value)
-    value = float(value)
-    if value > 1:
-        return value / 100
-    return value
+            # Explicit percentage: always divide by 100
+            return float(value[:-1].strip()) / 100
+        num = float(value)
+        return num / 100 if num > 1 else num
+    num = float(value)
+    if num > 1:
+        return num / 100
+    return num
 
 
 @register_check("completeness")

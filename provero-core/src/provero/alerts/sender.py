@@ -31,15 +31,24 @@ if TYPE_CHECKING:
 
 
 def _resolve_env_vars(value: str) -> str:
-    """Expand ${ENV_VAR} references in a string."""
-    if value.startswith("${") and value.endswith("}"):
-        env_var = value[2:-1]
-        resolved = os.environ.get(env_var)
+    """Expand ``${ENV_VAR}`` references in a string.
+
+    Only explicit ``${VAR}`` placeholders are expanded.  Bare ``$VAR``
+    syntax is left as-is to avoid corrupting URLs or tokens containing
+    literal ``$`` characters.  Raises ``ValueError`` when a referenced
+    variable is not set.
+    """
+    import re
+
+    def _replace(match: re.Match) -> str:
+        var = match.group(1)
+        resolved = os.environ.get(var)
         if resolved is None:
-            msg = f"Environment variable {env_var} is not set"
+            msg = f"Environment variable {var} is not set"
             raise ValueError(msg)
         return resolved
-    return os.path.expandvars(value)
+
+    return re.sub(r"\$\{([^}]+)\}", _replace, value)
 
 
 def _should_fire(alert: AlertConfig, result: SuiteResult) -> bool:

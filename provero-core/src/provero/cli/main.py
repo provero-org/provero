@@ -403,11 +403,12 @@ def run(
             )
             _echo(f"\n[green]HTML report: {report_path}[/green]")
 
-    if store:
-        store.close()
-
-    if exit_code:
-        raise typer.Exit(exit_code)
+    try:
+        if exit_code:
+            raise typer.Exit(exit_code)
+    finally:
+        if store:
+            store.close()
 
 
 def _parse_interval(s: str) -> int:
@@ -841,6 +842,14 @@ def history(
 
     store = SQLiteStore()
 
+    try:
+        _show_history(store, run_id, suite_name, limit)
+    finally:
+        store.close()
+
+
+def _show_history(store, run_id, suite_name, limit) -> None:
+    """Inner implementation for the history command."""
     if run_id:
         details = store.get_run_details(run_id)
         if not details:
@@ -876,7 +885,6 @@ def history(
         runs = store.get_history(suite_name=suite_name, limit=limit)
         if not runs:
             _echo("[dim]No history yet. Run 'provero run' first.[/dim]")
-            store.close()
             return
 
         table = Table(title="Run History")
@@ -904,8 +912,6 @@ def history(
 
         if not _quiet:
             console.print(table)
-
-    store.close()
 
 
 def _resolve_contract_source(contract, provero_config):

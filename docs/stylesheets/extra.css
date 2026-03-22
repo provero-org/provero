@@ -1,7 +1,26 @@
-/* Provero docs - minimal overrides */
+/* Provero brand: Emerald (#059669) + Gold (#D97706) + Navy (#0F172A) */
 
+/* Light mode */
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #059669;
+  --md-primary-fg-color--light: #10B981;
+  --md-primary-fg-color--dark: #047857;
+  --md-accent-fg-color: #D97706;
+  --md-accent-fg-color--transparent: rgba(217, 119, 6, 0.1);
+}
+
+/* Dark mode */
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #10B981;
+  --md-primary-fg-color--light: #34D399;
+  --md-primary-fg-color--dark: #059669;
+  --md-accent-fg-color: #F59E0B;
+  --md-accent-fg-color--transparent: rgba(245, 158, 11, 0.1);
+}
+
+/* Navy header */
 .md-header {
-  --md-primary-fg-color: #3f51b5;
+  background-color: #0F172A;
 }
 
 .md-typeset h1 {

@@ -1,0 +1,1 @@
+Fix empty table false failures in accepted_values/range, crash with empty values list, PostgreSQL subquery aliases, optimizer alias collisions, alert env var expansion, and SQLiteStore resource leaks in CLI.

@@ -85,9 +85,9 @@ def profile_table(
         try:
             connection.execute(f"SELECT 1 FROM {qtable} TABLESAMPLE BERNOULLI(1) LIMIT 1")
             pct = min(100, max(1, int(sample_size / row_count * 100)))
-            source_expr = f"(SELECT * FROM {qtable} TABLESAMPLE BERNOULLI({pct}))"
+            source_expr = f"(SELECT * FROM {qtable} TABLESAMPLE BERNOULLI({pct})) AS _sample"
         except Exception:
-            source_expr = f"(SELECT * FROM {qtable} LIMIT {sample_size})"
+            source_expr = f"(SELECT * FROM {qtable} LIMIT {sample_size}) AS _sample"
 
     columns: list[ColumnProfile] = []
 

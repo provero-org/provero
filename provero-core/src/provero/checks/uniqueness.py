@@ -82,7 +82,7 @@ def check_unique_combination(
     total = result[0]["total"]
 
     result = connection.execute(
-        f"SELECT COUNT(*) as distinct_count FROM (SELECT DISTINCT {qcols} FROM {qtable})"
+        f"SELECT COUNT(*) as distinct_count FROM (SELECT DISTINCT {qcols} FROM {qtable}) AS _sub"
     )
     distinct = result[0]["distinct_count"]
     duplicates = total - distinct

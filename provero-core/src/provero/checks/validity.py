@@ -39,6 +39,20 @@ def check_accepted_values(
     """
     col = check_config.column or ""
     values = check_config.params.get("values", [])
+
+    severity = Severity(check_config.severity) if check_config.severity else Severity.CRITICAL
+
+    if not values:
+        return CheckResult(
+            check_name=f"accepted_values:{col}",
+            check_type="accepted_values",
+            status=Status.ERROR,
+            severity=severity,
+            column=col,
+            observed_value="No accepted values specified",
+            expected_value="non-empty values list",
+        )
+
     qtable = quote_identifier(table)
     qcol = quote_identifier(col)
     placeholders = ", ".join(f"'{quote_value(str(v))}'" for v in values)
@@ -49,10 +63,8 @@ def check_accepted_values(
         f"FROM {qtable} WHERE {qcol} IS NOT NULL"
     )
     row = result[0]
-    total = row["total"]
-    invalid = row["invalid_count"]
-
-    severity = Severity(check_config.severity) if check_config.severity else Severity.CRITICAL
+    total = row["total"] or 0
+    invalid = row["invalid_count"] or 0
 
     return CheckResult(
         check_name=f"accepted_values:{col}",
@@ -111,8 +123,8 @@ def check_range(
         f"FROM {qtable} WHERE {qcol} IS NOT NULL"
     )
     row = result[0]
-    total = row["total"]
-    out_of_range = row["out_of_range"]
+    total = row["total"] or 0
+    out_of_range = row["out_of_range"] or 0
 
     expected = []
     if min_val is not None:

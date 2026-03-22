@@ -44,8 +44,12 @@ from provero.core.sql import quote_identifier, quote_value
 
 
 def _safe_alias(col: str) -> str:
-    """Sanitize a column name for use as a SQL alias."""
-    return col.replace(".", "_").replace(" ", "_")
+    """Sanitize a column name for use as a SQL alias.
+
+    Dots are replaced with ``__dot__`` to avoid collisions between
+    columns like ``a.b`` and ``a_b``.
+    """
+    return col.replace(".", "__dot__").replace(" ", "_")
 
 
 @dataclass
@@ -174,8 +178,11 @@ def plan_batch(table: str, checks: list[CheckConfig]) -> BatchPlan:
 
         elif check.check_type == "accepted_values":
             col = check.column or ""
-            qcol = quote_identifier(col)
             values = check.params.get("values", [])
+            if not values:
+                plan.non_batchable.append(check)
+                continue
+            qcol = quote_identifier(col)
             placeholders = ", ".join(f"'{quote_value(str(v))}'" for v in values)
             plan.add_metric(
                 alias=f"av_{_safe_alias(col)}_invalid",

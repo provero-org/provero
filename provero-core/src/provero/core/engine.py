@@ -181,8 +181,16 @@ def run_suite(
 
     try:
         return _run_suite_inner(
-            suite, connector, connection, optimize, parallel, max_workers,
-            run_id, suite_start, started_at, results,
+            suite,
+            connector,
+            connection,
+            optimize,
+            parallel,
+            max_workers,
+            run_id,
+            suite_start,
+            started_at,
+            results,
         )
     finally:
         connector.disconnect(connection)

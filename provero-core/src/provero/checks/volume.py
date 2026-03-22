@@ -57,6 +57,6 @@ def check_row_count(
         status=Status.PASS if passed else Status.FAIL,
         severity=severity,
         observed_value=f"{total:,}",
-        expected_value=" and ".join(expected_parts) if expected_parts else "> 0",
+        expected_value=" and ".join(expected_parts) if expected_parts else ">= 0 (any)",
         row_count=total,
     )

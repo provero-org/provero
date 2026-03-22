@@ -83,24 +83,27 @@ class ProveroCheckOperator(BaseOperator):
         store = SQLiteStore()
         all_results = []
 
-        for suite_config in config.suites:
-            if self.suite and suite_config.name != self.suite:
-                continue
+        try:
+            for suite_config in config.suites:
+                if self.suite and suite_config.name != self.suite:
+                    continue
 
-            connector = create_connector(suite_config.source)
-            result = run_suite(suite_config, connector, optimize=self.optimize)
-            store.save_result(result)
-            all_results.append(result.model_dump())
+                connector = create_connector(suite_config.source)
+                result = run_suite(suite_config, connector, optimize=self.optimize)
+                store.save_result(result)
+                all_results.append(result.model_dump())
 
-            if self.fail_on_error and result.status == Status.FAIL:
-                failed_checks = [c.check_name for c in result.checks if c.status == Status.FAIL]
-                msg = (
-                    f"Suite '{suite_config.name}' failed. "
-                    f"Score: {result.quality_score}/100. "
-                    f"Failed checks: {', '.join(failed_checks)}"
-                )
-                store.close()
-                raise ValueError(msg)
+                if self.fail_on_error and result.status == Status.FAIL:
+                    failed_checks = [
+                        c.check_name for c in result.checks if c.status == Status.FAIL
+                    ]
+                    msg = (
+                        f"Suite '{suite_config.name}' failed. "
+                        f"Score: {result.quality_score}/100. "
+                        f"Failed checks: {', '.join(failed_checks)}"
+                    )
+                    raise ValueError(msg)
+        finally:
+            store.close()
 
-        store.close()
         return {"suites": all_results}

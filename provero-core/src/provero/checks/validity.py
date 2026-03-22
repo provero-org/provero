@@ -196,8 +196,8 @@ def check_regex(
             expected_value=f"matches /{pattern}/",
         )
 
-    total = row["total"]
-    non_matching = int(row["non_matching"])
+    total = row["total"] or 0
+    non_matching = int(row["non_matching"] or 0)
 
     return CheckResult(
         check_name=f"regex:{col}",

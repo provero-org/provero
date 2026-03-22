@@ -155,14 +155,22 @@ def list_connectors() -> list[str]:
 
 
 def _resolve_connection(connection: str) -> str:
-    """Resolve environment variables in connection strings."""
+    """Resolve environment variables in connection strings.
+
+    Only expands explicit ``${VAR}`` placeholders (not bare ``$VAR``)
+    to avoid corrupting passwords or paths containing literal ``$``.
+    """
     if not connection:
         return connection
-    if connection.startswith("${") and connection.endswith("}"):
-        env_var = connection[2:-1]
-        value = os.environ.get(env_var)
+
+    import re
+
+    def _replace(match: re.Match) -> str:
+        var = match.group(1)
+        value = os.environ.get(var)
         if value is None:
-            msg = f"Environment variable {env_var} is not set"
+            msg = f"Environment variable {var} is not set"
             raise ValueError(msg)
         return value
-    return os.path.expandvars(connection)
+
+    return re.sub(r"\$\{([^}]+)\}", _replace, connection)

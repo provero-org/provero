@@ -78,11 +78,16 @@ def check_unique_combination(
     qtable = quote_identifier(table)
     qcols = ", ".join(quote_identifier(c) for c in columns)
 
-    result = connection.execute(f"SELECT COUNT(*) as total FROM {qtable}")
+    # Exclude rows where any key column is NULL to avoid false positives,
+    # consistent with the single-column unique check.
+    null_filter = " AND ".join(f"{quote_identifier(c)} IS NOT NULL" for c in columns)
+
+    result = connection.execute(f"SELECT COUNT(*) as total FROM {qtable} WHERE {null_filter}")
     total = result[0]["total"]
 
     result = connection.execute(
-        f"SELECT COUNT(*) as distinct_count FROM (SELECT DISTINCT {qcols} FROM {qtable}) AS _sub"
+        f"SELECT COUNT(*) as distinct_count FROM "
+        f"(SELECT DISTINCT {qcols} FROM {qtable} WHERE {null_filter}) AS _sub"
     )
     distinct = result[0]["distinct_count"]
     duplicates = total - distinct

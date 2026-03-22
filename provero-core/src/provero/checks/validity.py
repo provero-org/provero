@@ -266,11 +266,20 @@ def check_email_validation(
         ),
     ]
 
+    # Each negation pattern corresponds to the query at the same index.
+    negation_patterns = [
+        f"NOT regexp_matches({qcol}, '{safe_pattern}')",
+        f"NOT ({qcol} ~ '{safe_pattern}')",
+        f"NOT ({qcol} REGEXP '{safe_pattern}')",
+    ]
+
     row = None
-    for query in queries:
+    matched_idx = 0
+    for i, query in enumerate(queries):
         try:
             result = connection.execute(query)
             row = result[0]
+            matched_idx = i
             break
         except Exception:
             continue
@@ -302,8 +311,10 @@ def check_email_validation(
         failing_rows=invalid,
         failing_rows_query=(
             f"SELECT {qcol} FROM {qtable} WHERE {qcol} IS NOT NULL "
-            f"AND NOT regexp_matches({qcol}, '{safe_pattern}')"
-        ),
+            f"AND {negation_patterns[matched_idx]}"
+        )
+        if invalid > 0
+        else "",
     )
 
 

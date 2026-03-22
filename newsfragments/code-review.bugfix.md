@@ -1,1 +1,0 @@
-Fix SQL injection via table expressions, connection leak in run_suite, regex crash on empty tables, SQLite WAL mode for thread safety, Airflow operator store leak, artifact version mismatch, optimizer alias collisions, completeness percentage parsing, and env var resolution safety.

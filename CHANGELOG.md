@@ -7,6 +7,15 @@ Each PR should include a news fragment in the `newsfragments/` directory.
 
 <!-- towncrier release notes start -->
 
+0.2.1 (2026-03-22)
+
+# Bug Fixes
+
+- Fix SQL injection via table expressions, connection leak in run_suite, regex crash on empty tables, SQLite WAL mode for thread safety, Airflow operator store leak, artifact version mismatch, optimizer alias collisions, completeness percentage parsing, and env var resolution safety. (code-review)
+- Fix empty table false failures in accepted_values/range, crash with empty values list, PostgreSQL subquery aliases, optimizer alias collisions, alert env var expansion, and SQLiteStore resource leaks in CLI. (review-round2)
+- Fix email_validation failing_rows_query to use correct regex dialect per database, and fix unique_combination false positives when composite key columns contain NULLs. (review-round3)
+
+
 0.2.0 (2026-03-21)
 
 # Features

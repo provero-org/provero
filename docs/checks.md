@@ -1,6 +1,6 @@
 # Check Types
 
-Provero includes 15 built-in check types organized by category. Each check can be written in shorthand or expanded YAML form.
+Provero includes 16 built-in check types organized by category. Each check can be written in shorthand or expanded YAML form.
 
 ## Completeness
 

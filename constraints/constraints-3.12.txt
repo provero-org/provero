@@ -10,7 +10,7 @@ attrs==26.1.0
     #   referencing
 click==8.3.1
     # via typer
-duckdb==1.5.0
+duckdb==1.5.1
     # via provero (provero-core/pyproject.toml)
 greenlet==3.3.2
     # via sqlalchemy
@@ -28,7 +28,7 @@ mdurl==0.1.2
     # via markdown-it-py
 pydantic==2.12.5
     # via provero (provero-core/pyproject.toml)
-pydantic-core==2.42.0
+pydantic-core==2.44.0
     # via pydantic
 pygments==2.19.2
     # via rich

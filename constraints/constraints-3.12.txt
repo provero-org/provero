@@ -28,7 +28,7 @@ mdurl==0.1.2
     # via markdown-it-py
 pydantic==2.12.5
     # via provero (provero-core/pyproject.toml)
-pydantic-core==2.42.0
+pydantic-core==2.41.5
     # via pydantic
 pygments==2.19.2
     # via rich

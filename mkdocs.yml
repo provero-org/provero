@@ -67,7 +67,15 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Configuration: configuration.md
-  - How It Works: how-it-works.md
+  - How It Works:
+    - Overview: how-it-works/index.md
+    - Parser: how-it-works/parser.md
+    - Connectors: how-it-works/connectors.md
+    - Optimizer: how-it-works/optimizer.md
+    - Engine: how-it-works/engine.md
+    - Results: how-it-works/results.md
+    - Check Registry: how-it-works/registry.md
+    - SQL Safety: how-it-works/sql-safety.md
   - Check Types: checks.md
   - Connectors: connectors.md
   - Anomaly Detection: anomaly-detection.md

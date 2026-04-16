@@ -67,6 +67,7 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Configuration: configuration.md
+  - How It Works: how-it-works.md
   - Check Types: checks.md
   - Connectors: connectors.md
   - Anomaly Detection: anomaly-detection.md

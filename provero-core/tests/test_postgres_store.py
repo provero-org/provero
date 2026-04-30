@@ -27,7 +27,6 @@ from provero.store import create_store
 from provero.store.base import Store
 from provero.store.sqlite import SQLiteStore
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -133,17 +132,17 @@ class TestCreateStore:
 
     def test_postgres_config_imports_and_creates(self):
         """Factory should import PostgresStore lazily and pass the URL."""
+        import contextlib
+
         mock_cls = MagicMock()
-        with patch("provero.store.postgres.PostgresStore", mock_cls):
-            with patch.dict("sys.modules", {"psycopg": MagicMock()}):
-                try:
-                    create_store(
-                        {"type": "postgres", "connection_url": "postgresql://u:p@localhost/db"}
-                    )
-                except Exception:
-                    pass
-        # The factory should attempt to instantiate PostgresStore
-        # (may fail in mock setup, but we verify the import path is correct)
+        with (
+            patch("provero.store.postgres.PostgresStore", mock_cls),
+            patch.dict("sys.modules", {"psycopg": MagicMock()}),
+            contextlib.suppress(Exception),
+        ):
+            create_store(
+                {"type": "postgres", "connection_url": "postgresql://u:p@localhost/db"}
+            )
 
     def test_env_var_expansion(self, monkeypatch):
         monkeypatch.setenv("PG_HOST", "myhost")
@@ -185,7 +184,7 @@ class TestPostgresStoreMocked:
         return mock_module, mock_conn, mock_cursor
 
     def test_constructor_calls_connect(self, mock_psycopg):
-        mock_module, mock_conn, _ = mock_psycopg
+        mock_module, _mock_conn, _ = mock_psycopg
 
         with patch.dict("sys.modules", {"psycopg": mock_module}):
             from provero.store.postgres import PostgresStore

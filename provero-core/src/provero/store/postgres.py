@@ -257,7 +257,7 @@ class PostgresStore:
                     "SELECT * FROM provero_run ORDER BY started_at DESC LIMIT %s",
                     (limit,),
                 )
-            columns = [desc[0] for desc in cur.description]
+            columns = [desc[0] for desc in cur.description or []]
             return [dict(zip(columns, row, strict=True)) for row in cur.fetchall()]
 
     def get_run_details(self, run_id: str) -> list[dict]:
@@ -267,7 +267,7 @@ class PostgresStore:
                 "SELECT * FROM provero_check_result WHERE run_id = %s ORDER BY id",
                 (run_id,),
             )
-            columns = [desc[0] for desc in cur.description]
+            columns = [desc[0] for desc in cur.description or []]
             return [dict(zip(columns, row, strict=True)) for row in cur.fetchall()]
 
     def get_metrics(
@@ -285,7 +285,7 @@ class PostgresStore:
                    ORDER BY recorded_at DESC LIMIT %s""",
                 (suite_name, check_name, metric_name, limit),
             )
-            columns = [desc[0] for desc in cur.description]
+            columns = [desc[0] for desc in cur.description or []]
             return [dict(zip(columns, row, strict=True)) for row in cur.fetchall()]
 
     def close(self) -> None:

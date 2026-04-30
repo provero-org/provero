@@ -145,7 +145,7 @@ class TestWatchCommand:
         monkeypatch.chdir(tmp_path)
         config_path = str(duckdb_config_file["config_path"])
 
-        with patch("provero.cli.commands.watch.time.sleep", side_effect=KeyboardInterrupt):
+        with patch("provero.cli.main.time.sleep", side_effect=KeyboardInterrupt):
             result = cli_runner.invoke(
                 app,
                 [

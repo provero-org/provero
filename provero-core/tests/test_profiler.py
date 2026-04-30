@@ -125,6 +125,33 @@ class TestSuggestChecks:
         assert amount_check["range"]["min"] < 45.0
         assert amount_check["range"]["max"] > 999.99
 
+    def test_suggests_freshness_for_timestamp_columns(self):
+        connector = DuckDBConnector()
+        conn = connector.connect()
+        try:
+            conn._conn.execute("""
+                CREATE TABLE events (
+                    id INTEGER,
+                    created_at TIMESTAMP
+                )
+            """)
+            conn._conn.execute("""
+                INSERT INTO events VALUES
+                (1, '2026-01-01 00:00:00'),
+                (2, '2026-01-02 00:00:00'),
+                (3, '2026-01-03 00:00:00')
+            """)
+            profile = profile_table(conn, "events")
+            checks = suggest_checks(profile)
+
+            freshness_checks = [c for c in checks if "freshness" in c]
+            assert any(c["freshness"]["column"] == "created_at" for c in freshness_checks)
+
+            av_checks = [c for c in checks if "accepted_values" in c]
+            assert not any(c["accepted_values"]["column"] == "created_at" for c in av_checks)
+        finally:
+            connector.disconnect(conn)
+
     def test_suggests_row_count(self, orders_connection):
         profile = profile_table(orders_connection, "orders")
         checks = suggest_checks(profile)

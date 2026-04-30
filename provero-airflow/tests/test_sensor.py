@@ -11,31 +11,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
----
-package-name: provero-airflow
-name: Provero
-description: |
-  Data quality checks for Apache Airflow using Provero.
+"""Smoke tests for ProveroSensor construction."""
 
-  `Provero <https://github.com/provero-org/provero>`__
+from __future__ import annotations
 
-versions:
-  - 0.1.0-dev
+from provero.airflow.sensors import ProveroSensor
 
-dependencies:
-  - apache-airflow>=2.9
 
-hooks:
-  - integration-name: Provero
-    python-modules:
-      - provero.airflow.hooks
+def test_sensor_constructs_with_defaults() -> None:
+    sensor = ProveroSensor(task_id="wait_for_quality")
+    assert sensor.config_path == "provero.yaml"
+    assert sensor.suite is None
+    assert sensor.optimize is True
+    assert sensor.store_results is True
 
-operators:
-  - integration-name: Provero
-    python-modules:
-      - provero.airflow.operators
 
-sensors:
-  - integration-name: Provero
-    python-modules:
-      - provero.airflow.sensors
+def test_sensor_template_fields() -> None:
+    assert ProveroSensor.template_fields == ("config_path", "suite")

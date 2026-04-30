@@ -17,6 +17,10 @@
 
 """Provero - A vendor-neutral, declarative data quality engine."""
 
+import pkgutil
+
+__path__ = pkgutil.extend_path(__path__, __name__)
+
 try:
     from importlib.metadata import version
 

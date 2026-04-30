@@ -24,8 +24,11 @@ ENV/
 # Testing
 .pytest_cache/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
 .mypy_cache/
+.ruff_cache/
 
 # OS
 .DS_Store

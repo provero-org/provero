@@ -139,7 +139,7 @@ def export_openlineage(
         raise typer.Exit(1)
 
     from provero.core.engine import Engine
-    from provero.exporters.openlineage import export_events
+    from provero.exporters.openlineage import export_events  # type: ignore[import-untyped]
 
     engine = Engine(config)
     suites = engine.run_suites()

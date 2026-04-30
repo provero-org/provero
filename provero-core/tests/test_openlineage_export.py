@@ -103,9 +103,7 @@ class TestSuiteResultToEvents:
         assert events[0]["run"]["runId"] == "abc-123"
 
     def test_custom_namespace(self):
-        events = suite_result_to_events(
-            _make_suite(), namespace="postgres://localhost/mydb"
-        )
+        events = suite_result_to_events(_make_suite(), namespace="postgres://localhost/mydb")
         assert events[0]["job"]["namespace"] == "postgres://localhost/mydb"
 
 
@@ -132,10 +130,12 @@ class TestAssertionsFacet:
         assert assertions[0]["success"] is True
 
     def test_skipped_checks_excluded(self):
-        assertions = self._get_assertions([
-            _make_check(),
-            _make_check(status=Status.SKIP, column="skipped_col"),
-        ])
+        assertions = self._get_assertions(
+            [
+                _make_check(),
+                _make_check(status=Status.SKIP, column="skipped_col"),
+            ]
+        )
         assert len(assertions) == 1
 
     def test_column_present_when_set(self):
@@ -143,41 +143,53 @@ class TestAssertionsFacet:
         assert assertions[0]["column"] == "amount"
 
     def test_column_absent_for_table_level(self):
-        assertions = self._get_assertions([
-            _make_check(check_type="row_count", column=None, observed_value=100),
-        ])
+        assertions = self._get_assertions(
+            [
+                _make_check(check_type="row_count", column=None, observed_value=100),
+            ]
+        )
         assert "column" not in assertions[0]
 
     def test_severity_mapping_critical(self):
-        assertions = self._get_assertions([
-            _make_check(severity=Severity.CRITICAL),
-        ])
+        assertions = self._get_assertions(
+            [
+                _make_check(severity=Severity.CRITICAL),
+            ]
+        )
         assert assertions[0]["severity"] == "error"
 
     def test_severity_mapping_blocker(self):
-        assertions = self._get_assertions([
-            _make_check(severity=Severity.BLOCKER),
-        ])
+        assertions = self._get_assertions(
+            [
+                _make_check(severity=Severity.BLOCKER),
+            ]
+        )
         assert assertions[0]["severity"] == "error"
 
     def test_severity_mapping_warning(self):
-        assertions = self._get_assertions([
-            _make_check(severity=Severity.WARNING),
-        ])
+        assertions = self._get_assertions(
+            [
+                _make_check(severity=Severity.WARNING),
+            ]
+        )
         assert assertions[0]["severity"] == "warn"
 
     def test_severity_mapping_info(self):
-        assertions = self._get_assertions([
-            _make_check(severity=Severity.INFO),
-        ])
+        assertions = self._get_assertions(
+            [
+                _make_check(severity=Severity.INFO),
+            ]
+        )
         assert assertions[0]["severity"] == "warn"
 
     def test_multiple_checks(self):
-        assertions = self._get_assertions([
-            _make_check(check_type="not_null", column="a"),
-            _make_check(check_type="unique", column="b"),
-            _make_check(check_type="range", column="c"),
-        ])
+        assertions = self._get_assertions(
+            [
+                _make_check(check_type="not_null", column="a"),
+                _make_check(check_type="unique", column="b"),
+                _make_check(check_type="range", column="c"),
+            ]
+        )
         assert len(assertions) == 3
         types = {a["assertion"] for a in assertions}
         assert types == {"not_null", "unique", "range"}
@@ -191,27 +203,35 @@ class TestMetricsFacet:
         return end_event["inputs"][0]["facets"]["dataQualityMetrics"]
 
     def test_row_count_extracted(self):
-        metrics = self._get_metrics([
-            _make_check(check_type="row_count", column=None, observed_value=500),
-        ])
+        metrics = self._get_metrics(
+            [
+                _make_check(check_type="row_count", column=None, observed_value=500),
+            ]
+        )
         assert metrics["rowCount"] == 500
 
     def test_null_count_from_not_null(self):
-        metrics = self._get_metrics([
-            _make_check(check_type="not_null", column="email", failing_rows=3),
-        ])
+        metrics = self._get_metrics(
+            [
+                _make_check(check_type="not_null", column="email", failing_rows=3),
+            ]
+        )
         assert metrics["columnMetrics"]["email"]["nullCount"] == 3
 
     def test_distinct_count_from_unique(self):
-        metrics = self._get_metrics([
-            _make_check(check_type="unique", column="id", observed_value=99),
-        ])
+        metrics = self._get_metrics(
+            [
+                _make_check(check_type="unique", column="id", observed_value=99),
+            ]
+        )
         assert metrics["columnMetrics"]["id"]["distinctCount"] == 99
 
     def test_empty_column_metrics_when_no_columns(self):
-        metrics = self._get_metrics([
-            _make_check(check_type="row_count", column=None, observed_value=10),
-        ])
+        metrics = self._get_metrics(
+            [
+                _make_check(check_type="row_count", column=None, observed_value=10),
+            ]
+        )
         assert metrics["columnMetrics"] == {}
 
     def test_schema_url_present(self):
@@ -221,10 +241,12 @@ class TestMetricsFacet:
 
 class TestRunFacets:
     def test_summary_facet_present(self):
-        suite = _make_suite([
-            _make_check(status=Status.PASS),
-            _make_check(status=Status.FAIL, column="bad"),
-        ])
+        suite = _make_suite(
+            [
+                _make_check(status=Status.PASS),
+                _make_check(status=Status.FAIL, column="bad"),
+            ]
+        )
         events = suite_result_to_events(suite)
         end_event = events[1]
         summary = end_event["run"]["facets"]["provero_summary"]

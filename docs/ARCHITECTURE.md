@@ -1,10 +1,10 @@
-# Apache Provero - Technical Architecture
+# Provero - Technical Architecture
 
-> **provero** /ˈæseɪ/ — the testing of a substance to determine its quality or purity.
+> **provero** /ˈæseɪ/, the testing of a substance to determine its quality or purity.
 
 A vendor-neutral, declarative data quality engine with built-in anomaly detection.
 Works standalone, as an Airflow provider, or with any orchestrator.
-Successor espiritual do Apache Griffin, aprendendo com seus erros.
+A spiritual successor to Apache Griffin, learning from its mistakes.
 
 > **Note:** This document describes the target architecture, including planned features
 > not yet implemented. For currently available features, see the [README](https://github.com/provero-org/provero/blob/main/README.md).
@@ -16,18 +16,18 @@ Successor espiritual do Apache Griffin, aprendendo com seus erros.
 
 ## Design Principles
 
-1. **Simple by default, powerful when needed.** Um check de qualidade em 3 linhas de YAML.
-   GX precisa de 50+ linhas para o mesmo resultado.
-2. **Portable rules.** Regras definidas uma vez, executadas em qualquer lugar.
-   Introduce o Provero Quality Language (AQL), um padrão aberto.
-3. **Anomaly detection built-in.** Não precisa de SaaS de $100k/ano.
-   Detecção estatística roda localmente, sem dependência externa.
-4. **Orchestrator-agnostic.** Funciona como CLI, como lib Python, como Airflow
-   provider, como sidecar em qualquer pipeline.
-5. **Streaming + Batch.** Primeiro framework open source que trata streaming
-   como cidadão de primeira classe.
-6. **Data contracts first.** Produtores declaram, consumidores verificam,
-   Provero enforce.
+1. **Simple by default, powerful when needed.** A quality check in 3 lines of YAML.
+   GX needs 50+ lines for the same result.
+2. **Portable rules.** Rules defined once, executed anywhere.
+   Introduces the Provero Quality Language (AQL), an open standard.
+3. **Anomaly detection built-in.** No need for a $100k/year SaaS.
+   Statistical detection runs locally, with no external dependency.
+4. **Orchestrator-agnostic.** Works as a CLI, as a Python library, as an Airflow
+   provider, as a sidecar in any pipeline.
+5. **Streaming + Batch.** First open source framework to treat streaming
+   as a first-class citizen.
+6. **Data contracts first.** Producers declare, consumers verify,
+   Provero enforces.
 
 ---
 
@@ -37,40 +37,40 @@ Successor espiritual do Apache Griffin, aprendendo com seus erros.
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                           USER LAYER                                    │
 │                                                                         │
-│  provero.yaml          Python SDK          CLI            REST API        │
-│  (declarative)       (programmatic)      (provero-ctl)    (server mode)   │
+│  provero.yaml          Python SDK          CLI            REST API      │
+│  (declarative)       (programmatic)      (provero-ctl)    (server mode) │
 │                                                                         │
-│  ┌──────────────┐   ┌──────────────┐   ┌────────────┐  ┌────────────┐  │
-│  │ source: pg   │   │ @check       │   │ provero run  │  │ POST /scan │  │
-│  │ checks:      │   │ @contract    │   │ provero scan │  │ GET /report│  │
-│  │  - not_null  │   │ @monitor     │   │ provero watch│  │ GET /health│  │
-│  │  - unique    │   │              │   │ provero diff  │  │            │  │
-│  └──────────────┘   └──────────────┘   └────────────┘  └────────────┘  │
+│  ┌──────────────┐   ┌──────────────┐   ┌────────────┐  ┌────────────┐   │
+│  │ source: pg   │   │ @check       │   │ provero run│  │ POST /scan │   │
+│  │ checks:      │   │ @contract    │   │ provero... │  │ GET /report│   │
+│  │  - not_null  │   │ @monitor     │   │ provero... │  │ GET /health│   │
+│  │  - unique    │   │              │   │ provero... │  │            │   │
+│  └──────────────┘   └──────────────┘   └────────────┘  └────────────┘   │
 └──────────┬──────────────────┬──────────────────┬──────────────┬─────────┘
            │                  │                  │              │
            ▼                  ▼                  ▼              ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         PROVERO CORE ENGINE                               │
+│                         PROVERO CORE ENGINE                             │
 │                                                                         │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌────────────────────────┐  │
-│  │  Rule Compiler   │  │  Check Engine    │  │  Anomaly Detector     │  │
-│  │                  │  │                  │  │                       │  │
-│  │  AQL → exec plan │  │  Executes checks │  │  Statistical models   │  │
-│  │  Validates rules │  │  against data    │  │  over historical      │  │
-│  │  Optimizes scans │  │  Returns verdicts│  │  check results        │  │
-│  └────────┬─────────┘  └────────┬─────────┘  └───────────┬───────────┘  │
-│           │                     │                         │             │
-│  ┌────────┴─────────────────────┴─────────────────────────┴──────────┐  │
-│  │                     Result Store                                   │  │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌────────────────────────┐   │
+│  │  Rule Compiler  │  │  Check Engine   │  │  Anomaly Detector      │   │
+│  │                 │  │                 │  │                        │   │
+│  │  AQL → plan     │  │  Runs checks    │  │  Statistical models    │   │
+│  │  Validates      │  │  against data   │  │  over historical       │   │
+│  │  Optimizes scan │  │  Returns verdict│  │  check results         │   │
+│  └────────┬────────┘  └────────┬────────┘  └───────────┬────────────┘   │
+│           │                    │                       │                │
+│  ┌────────┴────────────────────┴───────────────────────┴─────────────┐  │
+│  │                     Result Store                                  │  │
 │  │  Check results, metrics, anomalies, trends (time-series)          │  │
 │  │  Backends: SQLite (local) | PostgreSQL (server) | S3 (archive)    │  │
 │  └───────────────────────────┬───────────────────────────────────────┘  │
-│                               │                                         │
-│  ┌────────────────────────────┴──────────────────────────────────────┐  │
-│  │                     Contract Registry                              │  │
-│  │  Data contracts: schema + quality SLAs + ownership                 │  │
-│  │  Versioned, git-friendly, publishable                             │  │
-│  └───────────────────────────────────────────────────────────────────┘  │
+│                              │                                          │
+│  ┌───────────────────────────┴────────────────────────────────────────┐ │
+│  │                     Contract Registry                              │ │
+│  │  Data contracts: schema + quality SLAs + ownership                 │ │
+│  │  Versioned, git-friendly, publishable                              │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────┬──────────────────────────────────────────┘
                                │
               ┌────────────────┼────────────────┐
@@ -89,7 +89,7 @@ Successor espiritual do Apache Griffin, aprendendo com seus erros.
 │ ├──────────────┤ │ │ │ (plugin)    │ │ │ │ OpenLineage      │ │
 │ │ DataFrame    │ │ │ ├─────────────┤ │ │ │ (lineage events) │ │
 │ │ (Pandas,     │ │ │ │ Dagster,    │ │ │ ├──────────────────┤ │
-│ │  Polars,     │ │ │ │ Prefect     │ │ │ │ Block / Quarantine│ │
+│ │  Polars,     │ │ │ │ Prefect     │ │ │ │ Block/Quarantine │ │
 │ │  Spark)      │ │ │ │ (future)    │ │ │ │ (halt pipeline   │ │
 │ ├──────────────┤ │ │ └─────────────┘ │ │ │  on failure)     │ │
 │ │ Files        │ │ │                 │ │ ├──────────────────┤ │
@@ -114,16 +114,16 @@ Successor espiritual do Apache Griffin, aprendendo com seus erros.
 
 ## Provero Quality Language (AQL)
 
-O diferencial principal. Um padrão aberto para definir regras de qualidade
-que funciona em qualquer ferramenta, como SQL funciona em qualquer banco.
+The main differentiator. An open standard for defining quality rules
+that works in any tool, the way SQL works in any database.
 
-### Sintaxe básica
+### Basic syntax
 
 ```yaml
-# provero.yaml - O mais simples possível
+# provero.yaml, the simplest possible form
 source:
   type: postgres
-  connection: ${POSTGRES_URI}    # variavel de ambiente ou Airflow connection
+  connection: ${POSTGRES_URI}    # environment variable or Airflow connection
   table: orders
 
 checks:
@@ -147,15 +147,15 @@ checks:
       WHERE amount < 0 AND status = 'delivered'
 ```
 
-3 linhas para o caso mais comum. Sem boilerplate, sem classes, sem configs.
+3 lines for the most common case. No boilerplate, no classes, no configs.
 
-### Exemplo completo com todas as features
+### Full example with every feature
 
 ```yaml
-# provero.yaml - Exemplo avancado
+# provero.yaml, advanced example
 version: "1.0"
 
-# Fontes de dados reutilizaveis
+# Reusable data sources
 sources:
   warehouse:
     type: snowflake
@@ -170,7 +170,7 @@ sources:
     topic: events.transactions
 
 # ──────────────────────────────────────────
-# Data Contracts (produtor declara, consumidor verifica)
+# Data Contracts (producer declares, consumer verifies)
 # ──────────────────────────────────────────
 contracts:
   - name: transactions_contract
@@ -180,8 +180,8 @@ contracts:
     version: "2.1"
     sla:
       freshness: 1h
-      completeness: 99.5%    # max 0.5% nulls em campos obrigatorios
-      availability: 99.9%    # uptime do data source
+      completeness: 99.5%    # max 0.5% nulls in required fields
+      availability: 99.9%    # uptime of the data source
     schema:
       columns:
         - name: tx_id
@@ -211,7 +211,7 @@ contracts:
     on_violation: block       # block | warn | quarantine
 
 # ──────────────────────────────────────────
-# Check Suites (agrupamento logico)
+# Check Suites (logical grouping)
 # ──────────────────────────────────────────
 suites:
   - name: transactions_daily
@@ -283,8 +283,8 @@ suites:
           significance: 0.05
       - anomaly:
           metric: row_count
-          method: prophet           # prophet | zscore | mad | iqr
-          sensitivity: medium       # low | medium | high
+          method: prophet          # prophet | zscore | mad | iqr
+          sensitivity: medium      # low | medium | high
       - anomaly:
           metric: null_rate
           column: email
@@ -305,36 +305,36 @@ suites:
             FROM transactions
             WHERE date = CURRENT_DATE AND status = 'completed'
 
-    # Acoes quando checks falham
+    # Actions when checks fail
     on_failure:
       - alert:
           channels: [slack, pagerduty]
           severity: critical
           message: "Transaction quality checks failed: {{ failed_checks }}"
-      - block_downstream: true      # impede DAGs downstream de rodar
-      - quarantine:                  # move dados ruins para quarentena
+      - block_downstream: true      # prevent downstream DAGs from running
+      - quarantine:                 # move bad data to quarantine
           target: warehouse.quarantine.transactions
           filter: "{{ failing_rows_query }}"
 
   # ── Streaming checks ──
   - name: transactions_stream
     source: stream
-    type: streaming                  # key difference: runs continuously
-    window: 5m                       # evaluate every 5 min window
+    type: streaming                 # key difference: runs continuously
+    window: 5m                      # evaluate every 5 min window
 
     checks:
       - schema:
           type: json_schema
           ref: schemas/transaction_event.json
       - throughput:
-          min: 100                   # min 100 events per window
+          min: 100                  # min 100 events per window
           max: 50000
       - latency:
           field: event_time
-          max_delay: 30s             # event_time vs processing_time
+          max_delay: 30s            # event_time vs processing_time
       - anomaly:
           metric: throughput
-          method: mad                # Median Absolute Deviation
+          method: mad               # Median Absolute Deviation
           sensitivity: high
 
     on_failure:
@@ -352,8 +352,8 @@ monitors:
     schedule: "0 */6 * * *"         # every 6 hours
     columns: [amount, currency, status]
     methods:
-      - psi                          # Population Stability Index
-      - wasserstein                  # Earth Mover's Distance
+      - psi                         # Population Stability Index
+      - wasserstein                 # Earth Mover's Distance
     reference: last_7d
     threshold: 0.2
     on_drift:
@@ -369,7 +369,7 @@ reporting:
   publish_to: s3://data-quality-reports/
 ```
 
-### AQL como padrão aberto
+### AQL as an open standard
 
 ```
 AQL (Provero Quality Language) Specification:
@@ -410,14 +410,14 @@ Other tools can implement AQL:
 
 ### 1. Rule Compiler
 
-Transforma AQL (YAML) em planos de execucao otimizados.
+Transforms AQL (YAML) into optimized execution plans.
 
 ```
 provero.yaml
     │
     ▼
 ┌──────────────────────────────┐
-│         Rule Compiler         │
+│         Rule Compiler        │
 │                              │
 │  1. Parse YAML               │
 │  2. Validate against schema  │
@@ -454,10 +454,10 @@ One query instead of three. Massive performance difference at scale.
 
 ### 2. Check Engine
 
-Executa os checks contra os dados e retorna resultados padronizados.
+Executes checks against the data and returns standardized results.
 
 ```python
-# Resultado padronizado de cada check
+# Standardized result for every check
 @dataclass
 class CheckResult:
     check_name: str
@@ -465,22 +465,22 @@ class CheckResult:
     status: Status               # PASS | FAIL | WARN | ERROR | SKIP
     severity: Severity           # INFO | WARNING | CRITICAL | BLOCKER
 
-    # O que foi verificado
+    # What was checked
     source: str
     table: str
     column: str | None
 
-    # Resultado
-    observed_value: Any          # o que foi encontrado
-    expected_value: Any          # o que era esperado
+    # Result
+    observed_value: Any          # what was found
+    expected_value: Any          # what was expected
 
-    # Contexto
-    row_count: int               # linhas verificadas
-    failing_rows: int            # linhas que falharam
-    failing_rows_sample: list    # amostra de linhas ruins (configurable)
-    failing_rows_query: str      # SQL para reproduzir
+    # Context
+    row_count: int               # rows checked
+    failing_rows: int            # rows that failed
+    failing_rows_sample: list    # sample of bad rows (configurable)
+    failing_rows_query: str      # SQL to reproduce
 
-    # Tempo
+    # Timing
     started_at: datetime
     duration_ms: int
 
@@ -489,11 +489,11 @@ class CheckResult:
     suite: str
     run_id: str
 
-# Resultado de uma suite completa
+# Result of a full suite
 @dataclass
 class SuiteResult:
     suite_name: str
-    status: Status               # PASS se todos passaram, senao FAIL
+    status: Status               # PASS if all passed, otherwise FAIL
     checks: list[CheckResult]
 
     total: int
@@ -505,45 +505,45 @@ class SuiteResult:
     started_at: datetime
     duration_ms: int
 
-    # Score de qualidade (0-100)
+    # Quality score (0-100)
     quality_score: float
 ```
 
 ### 3. Anomaly Detector
 
-Detecçao de anomalias embutida, sem dependencia de SaaS externo.
+Built-in anomaly detection, no external SaaS dependency.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Anomaly Detector                          │
+│                    Anomaly Detector                         │
 │                                                             │
-│  Funciona sobre o historico de resultados de checks.        │
-│  Nao precisa dos dados brutos, apenas das metricas.        │
+│  Works over the history of check results.                   │
+│  Does not need raw data, only the metrics.                  │
 │                                                             │
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │ Methods (built-in, no external deps)                  │  │
 │  │                                                       │  │
-│  │  Z-Score          Simples, rapido.                    │  │
-│  │                   Bom para metricas com distribuicao  │  │
-│  │                   normal (row_count, latency)         │  │
+│  │  Z-Score          Simple, fast.                       │  │
+│  │                   Good for normally-distributed       │  │
+│  │                   metrics (row_count, latency)        │  │
 │  │                                                       │  │
 │  │  MAD              Median Absolute Deviation.          │  │
-│  │  (default)        Robusto a outliers. Funciona bem    │  │
-│  │                   na maioria dos casos.               │  │
+│  │  (default)        Robust to outliers. Works well      │  │
+│  │                   in most cases.                      │  │
 │  │                                                       │  │
 │  │  IQR              Interquartile Range.                │  │
-│  │                   Bom para metricas com skew.         │  │
+│  │                   Good for skewed metrics.            │  │
 │  │                                                       │  │
-│  │  Prophet           Facebook Prophet.                  │  │
-│  │  (optional dep)    Para metricas com sazonalidade     │  │
-│  │                    (weekday/weekend, holidays).       │  │
+│  │  Prophet          Facebook Prophet.                   │  │
+│  │  (optional dep)   For metrics with seasonality        │  │
+│  │                   (weekday/weekend, holidays).        │  │
 │  │                                                       │  │
-│  │  DBSCAN            Density-based clustering.          │  │
-│  │                    Para detectar anomalias             │  │
-│  │                    multivariadas.                     │  │
+│  │  DBSCAN           Density-based clustering.           │  │
+│  │                   For multivariate anomaly            │  │
+│  │                   detection.                          │  │
 │  └───────────────────────────────────────────────────────┘  │
 │                                                             │
-│  Input:  historico de metricas (result store)                │
+│  Input:  metric history (result store)                      │
 │  Output: anomaly score + is_anomaly boolean + explanation   │
 │                                                             │
 │  ┌───────────────────────────────────────────────────────┐  │
@@ -554,61 +554,61 @@ Detecçao de anomalias embutida, sem dependencia de SaaS externo.
 │  │  high:   flags moderate deviations (>2 sigma)         │  │
 │  └───────────────────────────────────────────────────────┘  │
 │                                                             │
-│  Nao requer GPU, nao requer cloud, roda em qualquer lugar. │
+│  No GPU required, no cloud required, runs anywhere.         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### 4. Contract Registry
 
-Data contracts versionados, publicaveis, auditaveis.
+Versioned, publishable, auditable data contracts.
 
 ```
-Conceito:
+Concept:
 
-  PRODUTOR (payments team)          CONSUMIDOR (analytics team)
+  PRODUCER (payments team)          CONSUMER (analytics team)
        │                                    │
-       │  publica contrato                  │  importa contrato
+       │  publishes contract                │  imports contract
        ▼                                    ▼
   ┌──────────────┐                 ┌──────────────┐
   │ transactions │                 │ analytics    │
   │ _contract    │                 │ _pipeline    │
   │ v2.1         │                 │              │
   │              │    registry     │ expects:     │
-  │ schema: ...  │◄──────────────►│  transactions│
+  │ schema: ...  │◄──────────────► │  transactions│
   │ sla: ...     │                 │  _contract   │
-  │ checks: ...  │                 │  v2.x       │
+  │ checks: ...  │                 │  v2.x        │
   └──────────────┘                 └──────────────┘
 
-O contrato define:
-  - Schema (colunas, tipos, nullable)
+The contract defines:
+  - Schema (columns, types, nullable)
   - Quality SLAs (freshness, completeness, availability)
-  - Owner (quem e responsavel)
+  - Owner (who is responsible)
   - Version (semver, breaking changes = major bump)
-  - Checks (quality rules que o produtor garante)
+  - Checks (quality rules the producer guarantees)
 
-Armazenamento:
-  - Git (YAML files no repo, versionados com o codigo)
-  - Registry Server (API para publicar/consultar, modo server)
-  - Ambos (git como source of truth, server como cache)
+Storage:
+  - Git (YAML files in the repo, versioned with the code)
+  - Registry Server (API to publish/query, server mode)
+  - Both (git as source of truth, server as cache)
 
 Workflow:
-  1. Produtor define contrato em provero.yaml
-  2. CI verifica que dados satisfazem o contrato
-  3. Consumidor declara dependencia no contrato
-  4. Se produtor quebra o contrato, consumidor e alertado
-  5. Breaking changes (major version) requerem opt-in do consumidor
+  1. Producer defines the contract in provero.yaml
+  2. CI verifies that the data satisfies the contract
+  3. Consumer declares a dependency on the contract
+  4. If the producer breaks the contract, the consumer is alerted
+  5. Breaking changes (major version) require consumer opt-in
 ```
 
 ### 5. Data Connectors
 
-Arquitetura plugavel. Cada conector implementa uma interface simples.
+Pluggable architecture. Every connector implements a simple interface.
 
 ```python
 class Connector(Protocol):
-    """Interface que todo conector implementa."""
+    """Interface that every connector implements."""
 
     def connect(self, config: dict) -> Connection:
-        """Estabelece conexao com a fonte de dados."""
+        """Establish connection to the data source."""
         ...
 
     def execute_checks(
@@ -616,7 +616,7 @@ class Connector(Protocol):
         connection: Connection,
         checks: list[CompiledCheck]
     ) -> list[CheckResult]:
-        """Executa checks compilados contra a fonte."""
+        """Execute compiled checks against the source."""
         ...
 
     def get_profile(
@@ -626,7 +626,7 @@ class Connector(Protocol):
         columns: list[str] | None = None,
         sample_size: int | None = None
     ) -> DataProfile:
-        """Gera perfil estatistico dos dados."""
+        """Generate a statistical profile of the data."""
         ...
 
     def get_schema(
@@ -634,18 +634,18 @@ class Connector(Protocol):
         connection: Connection,
         table: str
     ) -> SchemaInfo:
-        """Retorna schema da tabela."""
+        """Return the table schema."""
         ...
 
 
-# Conectores built-in no core:
+# Built-in connectors in the core:
 # SQL (SQLAlchemy-based): Postgres, MySQL, SQLite, DuckDB
 # Cloud SQL: Snowflake, BigQuery, Redshift, Databricks
-# Files: Parquet, CSV, JSON, Avro (via DuckDB ou Polars)
+# Files: Parquet, CSV, JSON, Avro (via DuckDB or Polars)
 # DataFrame: Pandas, Polars, Spark
 # Streaming: Kafka, Kinesis, Pulsar
 
-# Conectores via plugins (pacotes separados):
+# Plugin connectors (separate packages):
 # provero-connector-mongodb
 # provero-connector-elasticsearch
 # provero-connector-dynamodb
@@ -659,7 +659,7 @@ class Connector(Protocol):
 ### Airflow Provider Package: apache-airflow-providers-provero
 
 ```python
-# ── Operator: executa checks inline na DAG ──
+# ── Operator: runs checks inline in the DAG ──
 
 from airflow.decorators import dag, task
 from provero.airflow import ProveroCheckOperator, ProveroSensor
@@ -670,19 +670,19 @@ def etl_pipeline():
     extract = ...
     transform = ...
 
-    # Quality gate entre transform e load
+    # Quality gate between transform and load
     quality_check = ProveroCheckOperator(
         task_id="quality_check",
-        # Opcao 1: referencia a arquivo provero.yaml
+        # Option 1: reference a provero.yaml file
         provero_file="checks/transactions.yaml",
-        # Opcao 2: inline checks
+        # Option 2: inline checks
         # source={"type": "postgres", "conn_id": "warehouse"},
         # table="staging.transactions",
         # checks=[
         #     {"not_null": ["id", "amount"]},
         #     {"row_count": {"min": 1000}},
         # ],
-        fail_on=["critical", "blocker"],  # quais severidades bloqueiam
+        fail_on=["critical", "blocker"],  # which severities block
     )
 
     load = ...
@@ -690,7 +690,7 @@ def etl_pipeline():
     extract >> transform >> quality_check >> load
 
 
-# ── Sensor: espera dados atingirem qualidade minima ──
+# ── Sensor: wait for data to reach a minimum quality ──
 
     wait_for_quality = ProveroSensor(
         task_id="wait_for_quality",
@@ -705,7 +705,7 @@ def etl_pipeline():
     )
 
 
-# ── Decorator: mais Pythonico ──
+# ── Decorator: more Pythonic ──
 
 from provero.airflow import provero_check
 
@@ -730,15 +730,15 @@ def modern_pipeline():
 
 
 # ── DAG auto-generated from provero.yaml ──
-# Se provero.yaml tem schedule definido, gera DAG automaticamente
+# If provero.yaml has a schedule defined, a DAG is generated automatically
 
-# Arquivo: dags/provero_auto.py (unica linha)
+# File: dags/provero_auto.py (single line)
 from provero.airflow import generate_dags_from_directory
 generate_dags_from_directory("checks/")
-# Isso gera um DAG para cada suite com schedule em provero.yaml
+# This generates one DAG per suite with a schedule in provero.yaml
 ```
 
-### Flyte Integration (plugin separado)
+### Flyte Integration (separate plugin)
 
 ```python
 # provero-flyte package
@@ -768,34 +768,34 @@ def ml_pipeline():
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│               Streaming Check Engine                     │
+│               Streaming Check Engine                    │
 │                                                         │
 │  Kafka/Kinesis/Pulsar                                   │
 │       │                                                 │
 │       ▼                                                 │
-│  ┌──────────┐     ┌───────────┐     ┌───────────────┐  │
-│  │ Ingester │────▶│ Windowed  │────▶│ Check Engine  │  │
+│  ┌──────────┐     ┌───────────┐     ┌───────────────┐   │
+│  │ Ingester │────▶│ Windowed  │────▶│ Check Engine  │   │
 │  │          │     │ Aggregator│     │ (same as batch)│  │
-│  └──────────┘     └───────────┘     └───────┬───────┘  │
-│                                             │          │
-│  Windows:                                   ▼          │
-│  - Tumbling (every 5m)          ┌───────────────────┐  │
-│  - Sliding (5m window, 1m step) │ Result Store      │  │
-│  - Session (gap-based)          │ + Anomaly Detector│  │
-│                                 └───────────────────┘  │
+│  └──────────┘     └───────────┘     └───────┬───────┘   │
+│                                             │           │
+│  Windows:                                   ▼           │
+│  - Tumbling (every 5m)          ┌───────────────────┐   │
+│  - Sliding (5m window, 1m step) │ Result Store      │   │
+│  - Session (gap-based)          │ + Anomaly Detector│   │
+│                                 └───────────────────┘   │
 │                                                         │
-│  Checks suportados em streaming:                       │
-│  - schema (JSON Schema validation per message)         │
+│  Checks supported in streaming:                         │
+│  - schema (JSON Schema validation per message)          │
 │  - throughput (messages per window)                     │
-│  - latency (event_time vs processing_time)             │
-│  - null_rate (per window)                              │
-│  - anomaly (on windowed metrics)                       │
-│  - custom_python (UDF on each message or window)       │
+│  - latency (event_time vs processing_time)              │
+│  - null_rate (per window)                               │
+│  - anomaly (on windowed metrics)                        │
+│  - custom_python (UDF on each message or window)        │
 │                                                         │
-│  Nao suportados em streaming (batch-only):             │
-│  - unique (requires full scan)                         │
-│  - referential_integrity (requires join)               │
-│  - distribution tests (requires full sample)           │
+│  Not supported in streaming (batch-only):               │
+│  - unique (requires full scan)                          │
+│  - referential_integrity (requires join)                │
+│  - distribution tests (requires full sample)            │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -806,7 +806,7 @@ def ml_pipeline():
 ```sql
 -- Minimal schema. SQLite for local, PostgreSQL for server mode.
 
--- Sources registradas
+-- Registered sources
 CREATE TABLE provero_source (
     id          TEXT PRIMARY KEY,    -- "warehouse", "lake", etc.
     type        TEXT NOT NULL,       -- "postgres", "snowflake", etc.
@@ -815,7 +815,7 @@ CREATE TABLE provero_source (
     updated_at  TEXT NOT NULL
 );
 
--- Suites de checks
+-- Check suites
 CREATE TABLE provero_suite (
     id          TEXT PRIMARY KEY,
     name        TEXT UNIQUE NOT NULL,
@@ -826,7 +826,7 @@ CREATE TABLE provero_suite (
     updated_at  TEXT NOT NULL
 );
 
--- Execucoes de suites
+-- Suite runs
 CREATE TABLE provero_run (
     id          TEXT PRIMARY KEY,
     suite_id    TEXT REFERENCES provero_suite(id),
@@ -846,7 +846,7 @@ CREATE TABLE provero_run (
     duration_ms INTEGER
 );
 
--- Resultados individuais de cada check
+-- Individual check results
 CREATE TABLE provero_check_result (
     id              TEXT PRIMARY KEY,
     run_id          TEXT REFERENCES provero_run(id),
@@ -874,7 +874,7 @@ CREATE TABLE provero_check_result (
     INDEX idx_status (status)
 );
 
--- Metricas historicas (para anomaly detection)
+-- Historical metrics (for anomaly detection)
 CREATE TABLE provero_metric (
     id          TEXT PRIMARY KEY,
     suite_id    TEXT REFERENCES provero_suite(id),
@@ -919,22 +919,22 @@ CREATE TABLE provero_drift_event (
 
 ```bash
 # ── Init ──
-provero init                          # cria provero.yaml template
-provero init --from-source postgres://...  # gera checks automaticamente
-                                         # baseado no profile dos dados
+provero init                          # creates provero.yaml template
+provero init --from-source postgres://...  # auto-generates checks
+                                         # based on the data profile
 
 # ── Run checks ──
-provero run                           # executa todos os checks em provero.yaml
-provero run --suite transactions      # executa suite especifica
-provero run --tag critical            # executa checks com tag
-provero run --source warehouse        # executa checks de uma source
+provero run                           # runs every check in provero.yaml
+provero run --suite transactions      # runs a specific suite
+provero run --tag critical            # runs checks with a tag
+provero run --source warehouse        # runs checks for one source
 
 # ── Output ──
-provero run --format json             # resultado em JSON
-provero run --format table            # resultado em tabela (default)
-provero run --report html             # gera report HTML
+provero run --format json             # JSON result
+provero run --format table            # table result (default)
+provero run --report html             # generate HTML report
 
-# Exemplo de output (table format):
+# Example output (table format):
 # ┌─────────────────────┬──────────┬──────────┬───────────┬──────────┐
 # │ Check               │ Column   │ Status   │ Observed  │ Expected │
 # ├─────────────────────┼──────────┼──────────┼───────────┼──────────┤
@@ -954,31 +954,31 @@ provero run --report html             # gera report HTML
 # Query to inspect: SELECT * FROM orders WHERE amount < 0.01
 
 # ── Profile ──
-provero profile postgres://...        # profile estatistico de uma source
-provero profile --table orders        # profile de uma tabela
-provero profile --suggest             # sugere checks baseado no profile
+provero profile postgres://...        # statistical profile of a source
+provero profile --table orders        # profile one table
+provero profile --suggest             # suggests checks based on profile
 
 # ── Contracts ──
-provero contract validate             # valida dados contra contrato
-provero contract publish              # publica contrato no registry
-provero contract diff v2.0 v2.1       # diff entre versoes do contrato
-provero contract breaking-changes     # lista breaking changes
+provero contract validate             # validates data against contract
+provero contract publish              # publishes contract to registry
+provero contract diff v2.0 v2.1       # diff between contract versions
+provero contract breaking-changes     # lists breaking changes
 
 # ── Monitor (continuous) ──
-provero watch                         # roda checks continuamente
-provero watch --interval 5m           # a cada 5 minutos
-provero watch --stream                # modo streaming (Kafka, etc.)
+provero watch                         # runs checks continuously
+provero watch --interval 5m           # every 5 minutes
+provero watch --stream                # streaming mode (Kafka, etc.)
 
 # ── Server mode ──
-provero server                        # inicia API server (FastAPI)
+provero server                        # start API server (FastAPI)
 provero server --port 8080
 
 # ── Utilities ──
-provero diff source_a source_b        # compara duas fontes de dados
-provero lineage                       # mostra lineage (OpenLineage)
-provero export openlineage            # exporta resultados como OpenLineage events
-provero export great-expectations     # exporta regras como GX expectations
-provero export soda                   # exporta regras como SodaCL
+provero diff source_a source_b        # compare two data sources
+provero lineage                       # show lineage (OpenLineage)
+provero export openlineage            # export results as OpenLineage events
+provero export great-expectations     # export rules as GX expectations
+provero export soda                   # export rules as SodaCL
 ```
 
 ---
@@ -987,7 +987,7 @@ provero export soda                   # exporta regras como SodaCL
 
 ```
 Language:        Python 3.11+ (core engine, connectors, SDK)
-                 Rust (CLI binary, via PyO3 - optional, MVP in Python)
+                 Rust (CLI binary, via PyO3, optional, MVP in Python)
 
 SQL Engine:      DuckDB (embedded, for file-based checks and profiling)
                  SQLAlchemy 2.0 (for database connectors)
@@ -1021,7 +1021,7 @@ Packaging:
 ## Package Structure
 
 ```
-apache-provero/
+provero/
 ├── provero-core/
 │   └── src/provero/
 │       ├── __init__.py
@@ -1040,7 +1040,7 @@ apache-provero/
 │       │   ├── consistency.py       # referential_integrity, cross_source
 │       │   ├── distribution.py      # ks_test, chi_squared, psi
 │       │   ├── custom.py            # custom_sql, custom_python
-│       │   └── registry.py          # check type registry (plugable)
+│       │   └── registry.py          # check type registry (pluggable)
 │       ├── anomaly/
 │       │   ├── detector.py          # Anomaly detection orchestrator
 │       │   ├── methods/
@@ -1137,16 +1137,16 @@ apache-provero/
 │   ├── aql-spec.md                  # AQL language specification
 │   ├── connectors/
 │   ├── airflow-integration.md
-│   └── migration-from-gx.md        # Guia para migrar do Great Expectations
+│   └── migration-from-gx.md         # Guide for migrating from Great Expectations
 │
 ├── examples/
 │   ├── quickstart/                  # 3-line provero.yaml
 │   ├── ecommerce/                   # Full e-commerce pipeline
-│   ├── iot-sensors/                 # IoT/industrial (caso Bosch)
+│   ├── iot-sensors/                 # IoT/industrial
 │   ├── streaming/                   # Kafka streaming checks
 │   └── data-contracts/              # Contract-first workflow
 │
-├── aql-spec/                        # AQL spec (separado, para adocao por outros)
+├── aql-spec/                        # AQL spec (separate, for adoption by others)
 │   ├── spec.md
 │   ├── schema.json                  # JSON Schema for provero.yaml
 │   └── examples/
@@ -1161,7 +1161,7 @@ apache-provero/
 
 ```
 ┌────────────────────┬──────────┬───────────┬─────────┬──────────┐
-│                    │  Provero   │  Great Ex │  Soda   │  Pandera │
+│                    │  Provero │  Great Ex │  Soda   │  Pandera │
 ├────────────────────┼──────────┼───────────┼─────────┼──────────┤
 │ Lines for 1 check  │ 3        │ 50+       │ 5       │ 10       │
 │ Anomaly detection  │ Built-in │ No        │ Paid    │ No       │

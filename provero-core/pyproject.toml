@@ -41,11 +41,10 @@ snowflake = ["snowflake-sqlalchemy>=1.6"]
 bigquery = ["sqlalchemy-bigquery>=1.11"]
 redshift = ["redshift-connector>=2.1"]
 kafka = ["confluent-kafka>=2.3"]
-anomaly = ["scipy>=1.11", "numpy>=1.26"]
 prophet = ["prophet>=1.1"]
 server = ["fastapi>=0.110", "uvicorn>=0.29"]
 all = [
-    "provero[dataframe,postgres,snowflake,bigquery,anomaly,server]",
+    "provero[dataframe,postgres,snowflake,bigquery,server]",
 ]
 dev = [
     "pytest>=8.0",

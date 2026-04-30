@@ -223,6 +223,13 @@ def suggest_checks(profile: TableProfile) -> list[dict[str, Any]]:
         if col.distinct_pct == 100 and col.total_count > 1:
             unique_cols.append(col.name)
 
+        # Suggest freshness for timestamp/date columns instead of accepted_values.
+        _ts_types = ("timestamp", "date", "time", "datetime", "timestamptz")
+        is_temporal_col = any(t in col.dtype.lower() for t in _ts_types)
+        if is_temporal_col:
+            checks.append({"freshness": {"column": col.name, "max_age": "24h"}})
+            continue
+
         # Suggest accepted_values for low-cardinality non-numeric columns.
         # For numeric columns, range checks are more appropriate.
         is_numeric_col = col.min_value is not None and col.max_value is not None

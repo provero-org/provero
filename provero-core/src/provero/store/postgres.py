@@ -34,7 +34,7 @@ class PostgresStore:
 
     def __init__(self, connection_url: str) -> None:
         try:
-            import psycopg
+            import psycopg  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
                 "psycopg is required for the PostgreSQL store. "
@@ -170,8 +170,8 @@ class PostgresStore:
                         check.row_count,
                         check.failing_rows,
                         json.dumps(check.failing_rows_sample)
-                    if check.failing_rows_sample
-                    else None,
+                        if check.failing_rows_sample
+                        else None,
                         check.failing_rows_query,
                         check.duration_ms,
                     ),

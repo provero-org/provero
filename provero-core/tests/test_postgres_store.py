@@ -140,9 +140,7 @@ class TestCreateStore:
             patch.dict("sys.modules", {"psycopg": MagicMock()}),
             contextlib.suppress(Exception),
         ):
-            create_store(
-                {"type": "postgres", "connection_url": "postgresql://u:p@localhost/db"}
-            )
+            create_store({"type": "postgres", "connection_url": "postgresql://u:p@localhost/db"})
 
     def test_env_var_expansion(self, monkeypatch):
         monkeypatch.setenv("PG_HOST", "myhost")

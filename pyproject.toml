@@ -1,5 +1,5 @@
 [project]
-name = "apache-provero"
+name = "provero-workspace"
 version = "0.1.0-dev"
 description = "Provero workspace root"
 requires-python = ">=3.11"
@@ -49,6 +49,21 @@ select = [
 [tool.pytest.ini_options]
 testpaths = ["provero-core/tests"]
 pythonpath = ["provero-core/src"]
+
+[tool.coverage.run]
+source = ["provero-core/src/provero"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_covered = false
+exclude_also = [
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+    "pragma: no cover",
+]
 
 [dependency-groups]
 dev = [

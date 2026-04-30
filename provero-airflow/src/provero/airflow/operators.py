@@ -1,10 +1,6 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
 #   http://www.apache.org/licenses/LICENSE-2.0
 #
@@ -19,7 +15,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 try:
@@ -73,37 +68,27 @@ class ProveroCheckOperator(BaseOperator):
         self.optimize = optimize
 
     def execute(self, context: Any) -> dict[str, Any]:
-        from provero.connectors.factory import create_connector
-        from provero.core.compiler import compile_file
-        from provero.core.engine import run_suite
+        from provero.airflow.hooks import ProveroHook
         from provero.core.results import Status
-        from provero.store.sqlite import SQLiteStore
 
-        config = compile_file(Path(self.config_path))
-        store = SQLiteStore()
+        hook = ProveroHook(
+            config_path=self.config_path,
+            suite=self.suite,
+            optimize=self.optimize,
+        )
+        results = hook.run_checks()
         all_results = []
 
-        try:
-            for suite_config in config.suites:
-                if self.suite and suite_config.name != self.suite:
-                    continue
+        for result in results:
+            all_results.append(result.model_dump())
 
-                connector = create_connector(suite_config.source)
-                result = run_suite(suite_config, connector, optimize=self.optimize)
-                store.save_result(result)
-                all_results.append(result.model_dump())
-
-                if self.fail_on_error and result.status == Status.FAIL:
-                    failed_checks = [
-                        c.check_name for c in result.checks if c.status == Status.FAIL
-                    ]
-                    msg = (
-                        f"Suite '{suite_config.name}' failed. "
-                        f"Score: {result.quality_score}/100. "
-                        f"Failed checks: {', '.join(failed_checks)}"
-                    )
-                    raise ValueError(msg)
-        finally:
-            store.close()
+            if self.fail_on_error and result.status == Status.FAIL:
+                failed_checks = [c.check_name for c in result.checks if c.status == Status.FAIL]
+                msg = (
+                    f"Suite '{result.suite_name}' failed. "
+                    f"Score: {result.quality_score}/100. "
+                    f"Failed checks: {', '.join(failed_checks)}"
+                )
+                raise ValueError(msg)
 
         return {"suites": all_results}

@@ -49,7 +49,7 @@ jobs:
         run: |
           missing=()
           while IFS= read -r f; do
-            if ! head -5 "$f" | grep -q "Licensed to the Apache Software Foundation"; then
+            if ! head -5 "$f" | grep -qE "Licensed to the Apache Software Foundation|Licensed under the Apache License"; then
               missing+=("$f")
             fi
           done < <(find provero-core/src/provero provero-airflow/src/provero provero-flyte/src/provero -name "*.py" -type f)

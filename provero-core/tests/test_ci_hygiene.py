@@ -39,7 +39,10 @@ class TestLicenseHeaders:
         missing = []
         for f in py_files:
             content = f.read_text(encoding="utf-8")
-            if "Licensed to the Apache Software Foundation" not in content:
+            if (
+                "Licensed to the Apache Software Foundation" not in content
+                and "Licensed under the Apache License" not in content
+            ):
                 missing.append(str(f.relative_to(PROJECT_ROOT)))
 
         assert missing == [], f"Files missing Apache license header: {missing}"

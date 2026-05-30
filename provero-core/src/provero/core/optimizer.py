@@ -40,12 +40,27 @@ from provero.core.sql import quote_identifier, quote_value
 
 
 def _safe_alias(col: str) -> str:
-    """Sanitize a column name for use as a SQL alias.
+    """Sanitize a column name for use as a SQL alias, injectively.
 
-    Dots are replaced with ``__dot__`` to avoid collisions between
-    columns like ``a.b`` and ``a_b``.
+    The encoding is collision-free and reversible: every character that is
+    not an ASCII letter or digit is escaped as ``_<hex>_`` where ``<hex>`` is
+    the character's code point in hexadecimal. The trailing ``_`` delimits the
+    (variable-length) hex run, and a literal ``_`` is itself escaped (it is not
+    an ASCII alphanumeric, so it falls into the same rule). Because ``_`` only
+    ever appears as part of an escape sequence, the mapping is injective and
+    distinct column names can never produce the same alias. For example ``a.b``
+    -> ``a_2e_b`` while a real column literally named ``a_2e_b`` ->
+    ``a_5f_2_5f_e_5f_b``; the two no longer collide. Spaces, dots and
+    schema-qualified or nested/JSON column names (BigQuery, Snowflake) are all
+    handled unambiguously.
     """
-    return col.replace(".", "__dot__").replace(" ", "_")
+    out: list[str] = []
+    for ch in col:
+        if ch.isascii() and ch.isalnum():
+            out.append(ch)
+        else:
+            out.append(f"_{ord(ch):x}_")
+    return "".join(out)
 
 
 @dataclass
@@ -125,6 +140,13 @@ def plan_batch(table: str, checks: list[CheckConfig]) -> BatchPlan:
         elif check.check_type == "range":
             col = check.column or ""
             qcol = quote_identifier(col)
+            # COUNT(col) excludes NULLs so row_count matches the standalone
+            # range check (validity.py uses WHERE col IS NOT NULL). Fixes M5.
+            plan.add_metric(
+                alias=f"range_{_safe_alias(col)}_total",
+                expression=f"COUNT({qcol})",
+                check_config=check,
+            )
             plan.add_metric(
                 alias=f"range_{_safe_alias(col)}_min",
                 expression=f"MIN({qcol})",
@@ -180,6 +202,14 @@ def plan_batch(table: str, checks: list[CheckConfig]) -> BatchPlan:
                 continue
             qcol = quote_identifier(col)
             placeholders = ", ".join(f"'{quote_value(str(v))}'" for v in values)
+            # COUNT(col) excludes NULLs so row_count matches the standalone
+            # accepted_values check (validity.py uses WHERE col IS NOT NULL).
+            # Fixes M4.
+            plan.add_metric(
+                alias=f"av_{_safe_alias(col)}_total",
+                expression=f"COUNT({qcol})",
+                check_config=check,
+            )
             plan.add_metric(
                 alias=f"av_{_safe_alias(col)}_invalid",
                 expression=(
@@ -241,14 +271,19 @@ def execute_batch(
         # SUM/COUNT on empty tables may return None; coerce all values.
         data = {k: (v if v is not None else 0) for k, v in data.items()}
 
-        # Process each check from the batch results
-        processed_checks: set[str] = set()
+        # Process each check from the batch results.
+        # Dedup by the identity of the originating CheckConfig object: a single
+        # logical check (e.g. range) emits several metrics that all share the
+        # same check_config, so we must emit exactly one result for it. Two
+        # *distinct* user checks that happen to be identical are separate
+        # objects, so both are still emitted (no silent loss, fixes M2).
+        processed_checks: set[int] = set()
 
         for metric in plan.metrics:
             if metric.check_config.check_type == "_internal":
                 continue
 
-            check_key = f"{metric.check_config.check_type}:{metric.check_config.column}"
+            check_key = id(metric.check_config)
             if check_key in processed_checks:
                 continue
 
@@ -331,12 +366,25 @@ def execute_batch(
                 min_val = data.get(f"range_{_safe_alias(col)}_min")
                 max_val = data.get(f"range_{_safe_alias(col)}_max")
                 out_of_range = data.get(f"range_{_safe_alias(col)}_oor", 0)
+                # Non-null count, matching standalone semantics (M5).
+                col_total = data.get(f"range_{_safe_alias(col)}_total", total)
                 expected_parts = []
-                if check.params.get("min") is not None:
-                    expected_parts.append(f"min={check.params['min']}")
-                if check.params.get("max") is not None:
-                    expected_parts.append(f"max={check.params['max']}")
+                oor_conditions: list[str] = []
+                qtable = quote_identifier(plan.table)
+                qcol = quote_identifier(col)
+                raw_min = check.params.get("min")
+                raw_max = check.params.get("max")
+                if raw_min is not None:
+                    expected_parts.append(f"min={raw_min}")
+                    oor_conditions.append(f"{qcol} < {float(raw_min)}")
+                if raw_max is not None:
+                    expected_parts.append(f"max={raw_max}")
+                    oor_conditions.append(f"{qcol} > {float(raw_max)}")
                 severity = Severity(check.severity) if check.severity else Severity.CRITICAL
+                # Drill-down query for failing rows, matching standalone (M3).
+                drill_query = ""
+                if out_of_range > 0 and oor_conditions:
+                    drill_query = f"SELECT * FROM {qtable} WHERE {' OR '.join(oor_conditions)}"
                 results.append(
                     CheckResult(
                         check_name=f"range:{col}",
@@ -346,8 +394,9 @@ def execute_batch(
                         column=col,
                         observed_value=f"min={min_val}, max={max_val}",
                         expected_value=", ".join(expected_parts),
-                        row_count=total,
+                        row_count=col_total,
                         failing_rows=out_of_range,
+                        failing_rows_query=drill_query,
                     )
                 )
                 processed_checks.add(check_key)
@@ -380,8 +429,13 @@ def execute_batch(
 
             elif check.check_type == "accepted_values":
                 invalid = data.get(f"av_{_safe_alias(col)}_invalid", 0)
+                # Non-null count, matching standalone semantics (M4).
+                col_total = data.get(f"av_{_safe_alias(col)}_total", total)
                 values = check.params.get("values", [])
                 severity = Severity(check.severity) if check.severity else Severity.CRITICAL
+                qtable = quote_identifier(plan.table)
+                qcol = quote_identifier(col)
+                placeholders = ", ".join(f"'{quote_value(str(v))}'" for v in values)
                 results.append(
                     CheckResult(
                         check_name=f"accepted_values:{col}",
@@ -391,8 +445,14 @@ def execute_batch(
                         column=col,
                         observed_value=f"{invalid} invalid values",
                         expected_value=f"only {values}",
-                        row_count=total,
+                        row_count=col_total,
                         failing_rows=invalid,
+                        failing_rows_query=(
+                            f"SELECT DISTINCT {qcol} FROM {qtable} "
+                            f"WHERE {qcol} NOT IN ({placeholders}) AND {qcol} IS NOT NULL"
+                        )
+                        if invalid > 0
+                        else "",
                     )
                 )
                 processed_checks.add(check_key)

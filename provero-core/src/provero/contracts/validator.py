@@ -44,7 +44,7 @@ def validate_contract(
     """
     violations: list[ContractViolation] = []
     drift: list[SchemaDrift] = []
-    severity = "critical" if contract.on_violation == ViolationAction.BLOCK else "warning"
+    severity = _severity_for(contract.on_violation)
 
     table = contract.table
     if not table:
@@ -163,13 +163,7 @@ def validate_contract(
             violations.append(v)
 
     # Determine status
-    blocking = [v for v in violations if v.severity == "critical"]
-    if blocking:
-        status = "fail"
-    elif violations:
-        status = "warn" if contract.on_violation == ViolationAction.WARN else "fail"
-    else:
-        status = "pass"
+    status = _status_for(contract.on_violation, violations)
 
     return ContractResult(
         contract_name=contract.name,
@@ -177,6 +171,38 @@ def validate_contract(
         violations=violations,
         schema_drift=drift,
     )
+
+
+def _severity_for(action: ViolationAction) -> str:
+    """Map a violation action to the severity used for emitted violations.
+
+    QUARANTINE is non-blocking and gets its own severity, distinct from the
+    blocking ``critical`` of BLOCK and the soft ``warning`` of WARN.
+    """
+    if action == ViolationAction.BLOCK:
+        return "critical"
+    if action == ViolationAction.QUARANTINE:
+        return "quarantine"
+    return "warning"
+
+
+def _status_for(action: ViolationAction, violations: list[ContractViolation]) -> str:
+    """Compute the contract status from the on_violation action and violations.
+
+    Returns ``pass`` when there are no violations. Otherwise the status depends
+    on the action: BLOCK -> ``fail`` (exit code 1), WARN -> ``warn`` (non-blocking),
+    QUARANTINE -> ``quarantine`` (non-blocking, distinct from both).
+    """
+    blocking = [v for v in violations if v.severity == "critical"]
+    if blocking:
+        return "fail"
+    if not violations:
+        return "pass"
+    if action == ViolationAction.QUARANTINE:
+        return "quarantine"
+    if action == ViolationAction.WARN:
+        return "warn"
+    return "fail"
 
 
 def _types_compatible(expected: str, actual: str) -> bool:
@@ -272,7 +298,14 @@ def _check_freshness_sla(
     from provero.checks.freshness import _parse_duration
     from provero.core.sql import quote_identifier
 
-    max_age_seconds = _parse_duration(freshness_str)
+    try:
+        max_age_seconds = _parse_duration(freshness_str)
+    except ValueError as e:
+        return ContractViolation(
+            rule="sla.freshness",
+            message=f"Invalid freshness SLA '{freshness_str}': {e}",
+            severity=severity,
+        )
     qtable = quote_identifier(table)
 
     columns = connection.get_columns(table)
@@ -340,7 +373,14 @@ def _check_completeness_sla(
     """Check completeness SLA across contract columns."""
     from provero.core.sql import quote_identifier
 
-    min_pct = float(completeness_str.rstrip("%")) / 100.0
+    try:
+        min_pct = float(completeness_str.rstrip("%")) / 100.0
+    except ValueError as e:
+        return ContractViolation(
+            rule="sla.completeness",
+            message=f"Invalid completeness SLA '{completeness_str}': {e}",
+            severity=severity,
+        )
     qtable = quote_identifier(table)
 
     columns_to_check = (

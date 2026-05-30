@@ -1,0 +1,1 @@
+Add server mode via `provero serve`: a FastAPI REST API exposing health/readiness probes, suite listing and on-demand suite runs, run history, and a Prometheus `/metrics` endpoint, plus a stdlib interval scheduler and `X-API-Key` authentication. Requires the `server` extra (fastapi + uvicorn); keys come from `--api-key` or `PROVERO_API_KEYS`.

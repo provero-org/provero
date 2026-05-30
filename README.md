@@ -65,8 +65,9 @@ Score: 100/100 | 7 passed, 0 failed | 22ms
 
 ## Features
 
-- **16 check types**: not_null, unique, unique_combination, completeness, accepted_values,
-  range, regex, email_validation, type, freshness, latency, row_count, row_count_change, anomaly, custom_sql, referential_integrity
+- **20 check types**: not_null, unique, unique_combination, completeness, accepted_values,
+  range, regex, email_validation, type, freshness, latency, row_count, row_count_change, anomaly, custom_sql, referential_integrity,
+  distribution, cardinality, drift, cross_table_count
 - **3 connectors**: DuckDB (files + in-memory), PostgreSQL, Pandas/Polars DataFrame
 - **SQL batch optimizer**: compiles N checks into 1 query
 - **Data contracts**: schema validation, SLA enforcement, contract diff
@@ -77,6 +78,12 @@ Score: 100/100 | 7 passed, 0 failed | 22ms
 - **Data profiling**: `provero profile --suggest` auto-generates checks
 - **Configurable severity**: info, warning, critical, blocker per check
 - **JSON Schema validation** for provero.yaml
+- **Statistical checks**: distribution (mean/stddev bounds), cardinality (distinct count/ratio), drift (PSI vs a discrete baseline), cross_table_count (row-count parity/ratio between two tables)
+- **Connection pooling and retry**: per-source pool sizing, connect timeouts, and bounded retry-with-backoff for SQLAlchemy connectors
+- **Observability**: structured JSON audit log, OpenTelemetry spans, and Prometheus metrics on `provero run`, with secret redaction in audit output
+- **Server mode**: `provero serve` exposes a FastAPI REST API (health, suites, runs, `/metrics`), a stdlib interval scheduler, and `X-API-Key` authentication
+- **CI output formats**: `provero run --format sarif` and `--format junit` for code-scanning and test-report integrations
+- **Contract versioning**: version-aware `provero contract diff` flags breaking changes and missing version bumps with severity policies
 - **Airflow provider**: ProveroCheckOperator + @provero_check decorator
 - **SodaCL migration**: `provero import soda` converts configs in one command
 - **dbt interop**: `provero export dbt` generates schema.yml test definitions
@@ -102,6 +109,10 @@ Score: 100/100 | 7 passed, 0 failed | 22ms
 | `anomaly` | Statistical anomaly detection | `anomaly: { column: amount, method: zscore }` |
 | `custom_sql` | Custom SQL query returns truthy value | `custom_sql: "SELECT COUNT(*) > 0 FROM orders"` |
 | `referential_integrity` | FK values exist in reference table | `referential_integrity: { column: customer_id, reference_table: customers, reference_column: id }` |
+| `distribution` | Column mean/stddev within bounds | `distribution: { column: amount, mean: 100, mean_tolerance: 5, stddev_max: 50 }` |
+| `cardinality` | Distinct count or ratio within bounds | `cardinality: { column: country_code, min: 2, max: 250 }` |
+| `drift` | PSI of a column vs a discrete baseline | `drift: { column: segment, baseline: { A: 0.5, B: 0.3, C: 0.2 }, threshold: 0.25 }` |
+| `cross_table_count` | Row-count parity/ratio between two tables | `cross_table_count: { other_table: staging.orders, tolerance: 0 }` |
 
 ## Configuration
 
@@ -195,7 +206,12 @@ Anomaly detection uses the result store to compare current values against histor
 | `provero watch` | Continuously run checks on interval |
 | `provero import soda` | Convert SodaCL config to Provero format |
 | `provero export dbt` | Generate dbt schema.yml from checks |
+| `provero serve` | Run the REST API + scheduler server |
 | `provero version` | Show version |
+
+`provero run` accepts `--format table|json|csv|sarif|junit`. The `sarif` and `junit`
+formats emit a single whole-run document for CI code-scanning and test-report
+integrations.
 
 ## Alerts
 
@@ -223,6 +239,100 @@ alerts:
 
 Triggers: `on_failure` (default), `on_success`, `always`.
 
+## Observability
+
+`provero run` can emit governance and telemetry signals through optional observer flags.
+All three are off by default and degrade gracefully when their optional dependency is
+absent.
+
+```bash
+# Append a structured JSON audit record of the run (pure stdlib, always available)
+provero run --audit-log audit.jsonl
+
+# Emit OpenTelemetry spans for the suite and each check
+provero run --otel
+
+# Write a Prometheus text exposition of run metrics to a file
+provero run --metrics-file metrics.prom
+```
+
+OpenTelemetry and Prometheus require the observability extra:
+
+```bash
+pip install 'provero[observability]'
+```
+
+Exposed Prometheus metrics: `provero_checks_total` (by status), `provero_check_duration_seconds`,
+and `provero_suite_score`. The audit log records run id, suite name, a config hash, and
+per-check outcomes; connection strings and secrets are redacted before they are written.
+
+## Server Mode
+
+`provero serve` starts a FastAPI application that exposes the engine over HTTP and can
+run suites on a schedule. It requires the `server` extra (FastAPI + Uvicorn):
+
+```bash
+pip install 'provero[server]'
+
+provero serve                                   # 127.0.0.1:8000, auth disabled
+provero serve -c production.yaml --host 0.0.0.0 --port 9000
+provero serve --api-key secret1 --api-key secret2
+```
+
+Endpoints:
+
+| Method & path            | Auth | Description                              |
+|--------------------------|------|------------------------------------------|
+| `GET /health`            | no   | Liveness probe                           |
+| `GET /ready`             | no   | Readiness probe                          |
+| `GET /suites`            | yes  | List configured suites                   |
+| `POST /suites/{name}/run`| yes  | Run a suite on demand                    |
+| `GET /runs`              | yes  | List historical runs                     |
+| `GET /runs/{run_id}`     | yes  | Run detail                               |
+| `GET /metrics`           | no   | Prometheus exposition                    |
+
+Authentication is via the `X-API-Key` header. Allowed keys come from `--api-key`
+(repeatable) or the `PROVERO_API_KEYS` environment variable; if neither is set, auth is
+disabled. The bundled scheduler (`SuiteScheduler`) runs a suite on a fixed interval using
+the standard library only (no extra dependency) and persists every result to the store.
+
+## Statistical Checks
+
+Four statistical checks extend the engine for distributional and cross-table validation:
+
+```yaml
+checks:
+  # Mean within tolerance and an upper bound on stddev (population statistics)
+  - distribution:
+      column: amount
+      mean: 100.0
+      mean_tolerance: 5.0
+      stddev_max: 50.0
+
+  # Distinct-value count and/or ratio bounds (ratio = distinct / non_null)
+  - cardinality:
+      column: country_code
+      min: 2
+      max: 250
+      min_ratio: 0.0
+
+  # Population Stability Index against a discrete baseline distribution
+  - drift:
+      column: segment
+      baseline: { A: 0.5, B: 0.3, C: 0.2 }
+      threshold: 0.25         # PSI above this fails
+      warn_threshold: 0.1     # PSI above this warns
+
+  # Row-count parity (or ratio) between two tables on the same source
+  - cross_table_count:
+      other_table: staging.orders
+      tolerance: 0
+```
+
+`drift` is advisory by default (default severity `warning`): PSI above `threshold` fails,
+above `warn_threshold` warns, otherwise passes. `cross_table_count` also supports a
+`ratio` mode with `min_ratio`/`max_ratio` bounds.
+
 ## Data Contracts
 
 Define and enforce schema contracts:
@@ -245,6 +355,10 @@ contracts:
       completeness: "95%"
 ```
 
+Contracts carry a `version` field (default `1.0`). `provero contract diff` is
+version-aware: it classifies each change as breaking or non-breaking, and warns when a
+breaking change ships without a major version bump.
+
 ```bash
 provero contract validate
 provero contract diff old.yaml new.yaml
@@ -263,6 +377,35 @@ provero contract diff old.yaml new.yaml
 | Redshift    | Beta     | `pip install provero[redshift]`    |
 
 DuckDB supports file expressions: `read_csv('data.csv')`, `read_parquet('*.parquet')`.
+
+### Pooling and retry
+
+SQLAlchemy-backed connectors (PostgreSQL and the beta connectors) accept optional
+connection-pool and retry tuning per source. Every key is optional; when omitted, the
+connector behaves exactly as before.
+
+```yaml
+source:
+  type: postgres
+  table: orders
+  connection: ${POSTGRES_URL}
+  # Connection pool (forwarded to SQLAlchemy create_engine)
+  pool_size: 5
+  max_overflow: 10
+  pool_pre_ping: true
+  pool_recycle: 1800
+  pool_timeout: 30
+  connect_timeout: 10
+  # Bounded retry-with-backoff on transient connection errors
+  retry_attempts: 3
+  retry_base_delay: 0.1
+  retry_max_delay: 5.0
+  retry_jitter: true
+```
+
+Only *transient* failures (dropped connections, backend restarts, deadlocks) are retried.
+Programming errors such as a missing table or bad SQL fail immediately. Backoff is
+exponential with full jitter.
 
 ## API
 

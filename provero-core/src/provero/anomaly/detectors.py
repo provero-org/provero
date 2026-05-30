@@ -15,11 +15,46 @@
 
 from __future__ import annotations
 
+import math
 import statistics
 
 from provero.anomaly.models import SENSITIVITY_THRESHOLDS, AnomalyResult
 
 MIN_DATA_POINTS = 5
+
+
+def _validate_inputs(
+    values: list[float],
+    current: float,
+    threshold: float,
+    method: str,
+) -> AnomalyResult | None:
+    """Validate detector inputs, returning an errored result on failure.
+
+    Guards against non-finite inputs (inf/nan) and a non-positive or
+    non-finite threshold, both of which would otherwise yield silently
+    incorrect ranges or raise (e.g. ``ZeroDivisionError`` when
+    ``threshold == 0``). Returns ``None`` when the inputs are valid.
+    """
+    if not math.isfinite(threshold) or threshold <= 0:
+        return AnomalyResult(
+            is_anomaly=False,
+            observed_value=current if math.isfinite(current) else 0.0,
+            method=method,
+            explanation=f"Invalid threshold {threshold!r}; must be a finite value > 0",
+            data_points=len(values),
+        )
+
+    if not math.isfinite(current) or any(not math.isfinite(v) for v in values):
+        return AnomalyResult(
+            is_anomaly=False,
+            observed_value=current if math.isfinite(current) else 0.0,
+            method=method,
+            explanation="Non-finite value (inf/nan) in input; cannot compute reliably",
+            data_points=len(values),
+        )
+
+    return None
 
 
 def detect_zscore(
@@ -40,6 +75,10 @@ def detect_zscore(
             explanation="Insufficient history",
             data_points=len(values),
         )
+
+    invalid = _validate_inputs(values, current, threshold, "zscore")
+    if invalid is not None:
+        return invalid
 
     mean = statistics.mean(values)
     stdev = statistics.stdev(values)
@@ -93,6 +132,10 @@ def detect_mad(
             data_points=len(values),
         )
 
+    invalid = _validate_inputs(values, current, threshold, "mad")
+    if invalid is not None:
+        return invalid
+
     med = statistics.median(values)
     deviations = [abs(v - med) for v in values]
     mad = statistics.median(deviations) * 1.4826
@@ -144,6 +187,10 @@ def detect_iqr(
             explanation="Insufficient history",
             data_points=len(values),
         )
+
+    invalid = _validate_inputs(values, current, threshold, "iqr")
+    if invalid is not None:
+        return invalid
 
     # Use statistics.quantiles for accurate quartile calculation
     q1, _q2, q3 = statistics.quantiles(values, n=4)

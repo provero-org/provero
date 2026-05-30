@@ -25,6 +25,63 @@ from typing import Any
 from provero.connectors.base import Connection
 from provero.core.sql import quote_identifier
 
+# Numeric base type names (after stripping any "(...)" precision/scale params).
+# Matching is exact on the base name to avoid false positives such as
+# "interval" matching the substring "int".
+_NUMERIC_TYPES = frozenset(
+    {
+        "int",
+        "int2",
+        "int4",
+        "int8",
+        "integer",
+        "tinyint",
+        "smallint",
+        "bigint",
+        "hugeint",
+        "utinyint",
+        "usmallint",
+        "uinteger",
+        "ubigint",
+        "uhugeint",
+        "float",
+        "float4",
+        "float8",
+        "double",
+        "double precision",
+        "real",
+        "decimal",
+        "numeric",
+        "number",
+        "money",
+    }
+)
+
+# String base type names (exact match on the base name).
+_STRING_TYPES = frozenset(
+    {
+        "varchar",
+        "char",
+        "character",
+        "character varying",
+        "text",
+        "string",
+        "bpchar",
+    }
+)
+
+
+def _base_type(col_type: str) -> str:
+    """Normalize a SQL type name to its base form for exact matching.
+
+    Strips precision/scale params (``decimal(10,2)`` -> ``decimal``) and
+    array suffixes (``integer[]`` -> ``integer``), lowercases and trims.
+    """
+    base = col_type.lower().strip()
+    base = base.split("(", 1)[0]
+    base = base.split("[", 1)[0]
+    return base.strip()
+
 
 @dataclass
 class ColumnProfile:
@@ -119,33 +176,30 @@ def profile_table(
             distinct_pct=round(distinct_count / total * 100, 2) if total > 0 else 0,
         )
 
-        # Numeric stats
-        is_numeric = any(
-            t in col_type
-            for t in [
-                "int",
-                "float",
-                "double",
-                "decimal",
-                "numeric",
-                "real",
-                "bigint",
-                "smallint",
-                "number",
-                "money",
-            ]
-        )
+        # Numeric stats. Match on the normalized base type name so variants
+        # like "interval" (which contains the substring "int") are not
+        # misclassified as numeric and routed into a CAST that would crash.
+        base_type = _base_type(col_type)
+        is_numeric = base_type in _NUMERIC_TYPES
+        num_stats: dict[str, Any] | None = None
         if is_numeric:
             # Use ANSI SQL: AVG and STDDEV are widely supported.
             # PERCENTILE_CONT is ANSI but not all DBs support it. Try it with a fallback.
-            num_stats = connection.execute(
-                f"SELECT "
-                f"MIN({qcol}) as min_val, "
-                f"MAX({qcol}) as max_val, "
-                f"AVG(CAST({qcol} AS DOUBLE PRECISION)) as mean_val, "
-                f"STDDEV(CAST({qcol} AS DOUBLE PRECISION)) as stddev_val "
-                f"FROM {source_expr} WHERE {qcol} IS NOT NULL"
-            )[0]
+            # Guard the whole numeric-stats query: even with correct detection,
+            # an unanticipated type (or a backend that rejects the CAST) should
+            # degrade gracefully rather than crash the entire profile run.
+            try:
+                num_stats = connection.execute(
+                    f"SELECT "
+                    f"MIN({qcol}) as min_val, "
+                    f"MAX({qcol}) as max_val, "
+                    f"AVG(CAST({qcol} AS DOUBLE PRECISION)) as mean_val, "
+                    f"STDDEV(CAST({qcol} AS DOUBLE PRECISION)) as stddev_val "
+                    f"FROM {source_expr} WHERE {qcol} IS NOT NULL"
+                )[0]
+            except Exception:
+                num_stats = None
+        if num_stats is not None:
             profile.min_value = num_stats["min_val"]
             profile.max_value = num_stats["max_val"]
             profile.mean_value = (
@@ -169,8 +223,8 @@ def profile_table(
             except Exception:
                 profile.median_value = None
 
-        # String stats
-        is_string = any(t in col_type for t in ["varchar", "text", "char", "string"])
+        # String stats (exact base-type match, consistent with numeric detection)
+        is_string = base_type in _STRING_TYPES
         if is_string:
             str_stats = connection.execute(
                 f"SELECT "

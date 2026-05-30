@@ -224,3 +224,40 @@ class TestWatchCommand:
         assert result.exit_code == 0
         parsed = json.loads(result.output.strip())
         assert parsed["suite_name"] == "orders_suite"
+
+
+class TestWatchFilterMatchesNothing:
+    """M13: watch warns when --suite matches no suite instead of silent run."""
+
+    def test_watch_unknown_suite_warns(self, cli_runner, duckdb_file, tmp_path):
+        config = tmp_path / "multi.yaml"
+        config.write_text(
+            textwrap.dedent(f"""\
+            version: "1.0"
+            sources:
+              warehouse:
+                type: duckdb
+                connection: "{duckdb_file}"
+
+            suites:
+              - name: orders_suite
+                source: warehouse
+                table: orders
+                checks:
+                  - not_null: order_id
+        """)
+        )
+        result = cli_runner.invoke(
+            app,
+            [
+                "watch",
+                "--config",
+                str(config),
+                "--no-store",
+                "--count",
+                "1",
+                "--suite",
+                "missing_suite",
+            ],
+        )
+        assert "no suite matched" in result.output.lower()

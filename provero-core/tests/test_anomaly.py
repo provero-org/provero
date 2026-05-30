@@ -131,3 +131,67 @@ class TestDispatcher:
         values = [float(v) for v in range(20)]
         result = detect_anomaly(values, 10.0, method="iqr")
         assert result.method == "iqr"
+
+
+class TestThresholdGuard:
+    """A6: threshold=0 (or negative/non-finite) must not raise ZeroDivisionError."""
+
+    def test_zscore_threshold_zero_no_crash(self):
+        values = [100.0, 102.0, 98.0, 101.0, 99.0, 100.5, 101.5, 99.5]
+        result = detect_zscore(values, 200.0, threshold=0.0)
+        assert result.is_anomaly is False
+        assert "threshold" in result.explanation.lower()
+
+    def test_mad_threshold_zero_no_crash(self):
+        values = [100.0, 102.0, 98.0, 101.0, 99.0, 100.5, 101.5, 99.5]
+        result = detect_mad(values, 200.0, threshold=0.0)
+        assert result.is_anomaly is False
+        assert "threshold" in result.explanation.lower()
+
+    def test_iqr_threshold_zero_no_crash(self):
+        values = [float(v) for v in range(20)]
+        # current well outside the fence so the anomaly/score branch runs
+        result = detect_iqr(values, 1000.0, threshold=0.0)
+        assert result.is_anomaly is False
+        assert "threshold" in result.explanation.lower()
+
+    def test_negative_threshold_rejected(self):
+        values = [100.0, 102.0, 98.0, 101.0, 99.0, 100.5, 101.5, 99.5]
+        result = detect_mad(values, 200.0, threshold=-3.0)
+        assert result.is_anomaly is False
+        assert "threshold" in result.explanation.lower()
+
+
+class TestNonFiniteInputs:
+    """A7: inf/nan in history or current must not yield silent wrong results."""
+
+    def test_zscore_inf_in_history(self):
+        values = [100.0, 102.0, 98.0, 101.0, float("inf"), 100.5, 101.5, 99.5]
+        result = detect_zscore(values, 100.0, threshold=3.0)
+        assert result.is_anomaly is False
+        assert "non-finite" in result.explanation.lower()
+
+    def test_mad_inf_in_history(self):
+        # Previously: inf distorted the median silently without erroring.
+        values = [10.0, 11.0, 10.5, 10.2, float("inf"), 10.3, 10.1, 9.9]
+        result = detect_mad(values, 10.0, threshold=3.0)
+        assert result.is_anomaly is False
+        assert "non-finite" in result.explanation.lower()
+
+    def test_iqr_nan_in_history(self):
+        values = [float(v) for v in range(19)] + [float("nan")]
+        result = detect_iqr(values, 10.0, threshold=1.5)
+        assert result.is_anomaly is False
+        assert "non-finite" in result.explanation.lower()
+
+    def test_current_nan_rejected(self):
+        values = [100.0, 102.0, 98.0, 101.0, 99.0, 100.5, 101.5, 99.5]
+        result = detect_mad(values, float("nan"), threshold=3.0)
+        assert result.is_anomaly is False
+        assert "non-finite" in result.explanation.lower()
+
+    def test_current_inf_rejected_via_dispatcher(self):
+        values = [100.0, 102.0, 98.0, 101.0, 99.0, 100.5, 101.5, 99.5]
+        result = detect_anomaly(values, float("inf"), method="zscore")
+        assert result.is_anomaly is False
+        assert "non-finite" in result.explanation.lower()

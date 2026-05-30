@@ -454,3 +454,61 @@ class TestQuietFlag:
         result = cli_runner.invoke(app, ["--quiet", "history"])
         assert result.exit_code == 0
         assert "Run History" not in result.output
+
+
+class TestFilterMatchesNothing:
+    """M13: warn when --suite/--tag matches no suite instead of silent exit 0."""
+
+    def test_run_unknown_suite_warns(self, cli_runner, duckdb_config_file, monkeypatch, tmp_path):
+        monkeypatch.chdir(tmp_path)
+        config_path = str(duckdb_config_file["config_path"])
+        result = cli_runner.invoke(
+            app,
+            ["run", "--config", config_path, "--no-store", "--suite", "does_not_exist"],
+        )
+        assert "no suite matched" in result.output.lower()
+
+    def test_run_unknown_tag_warns(self, cli_runner, duckdb_config_file, monkeypatch, tmp_path):
+        monkeypatch.chdir(tmp_path)
+        config_path = str(duckdb_config_file["config_path"])
+        result = cli_runner.invoke(
+            app,
+            ["run", "--config", config_path, "--no-store", "--tag", "nope"],
+        )
+        assert "no suite matched" in result.output.lower()
+
+
+class TestAlertDeliveryFailureWarning:
+    """M12: delivery failure must warn even when checks pass (always/on_success)."""
+
+    def test_always_alert_delivery_failure_warns_on_pass(
+        self, cli_runner, duckdb_file, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        config = tmp_path / "provero.yaml"
+        config.write_text(
+            textwrap.dedent(f"""\
+            source:
+              type: duckdb
+              connection: "{duckdb_file}"
+              table: orders
+
+            checks:
+              - not_null: order_id
+
+            alerts:
+              - type: webhook
+                url: https://hooks.example.com/test
+                trigger: always
+        """)
+        )
+
+        # Force delivery to fail (returns False) while all checks pass.
+        import provero.alerts.sender as sender_mod
+
+        monkeypatch.setattr(sender_mod, "send_alerts", lambda alerts, result: [False])
+
+        result = cli_runner.invoke(app, ["run", "--config", str(config), "--no-store"])
+        # Checks pass so exit code is 0, but the failed delivery must be surfaced.
+        assert result.exit_code == 0
+        assert "alert delivery failed" in result.output.lower()

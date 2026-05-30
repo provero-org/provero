@@ -295,3 +295,46 @@ class TestCLI:
         runner = CliRunner()
         result = runner.invoke(app, ["import", "soda", str(tmp_path / "nope.yaml")])
         assert result.exit_code == 1
+
+
+class TestQuotedTableName:
+    def test_quoted_table_name_with_space_not_truncated(self):
+        # Regression: bare \\S+ truncated `"my table"` at the first space,
+        # producing table name `"my` and dropping the rest.
+        soda = textwrap.dedent("""\
+            checks for "my table":
+              - row_count > 0
+        """)
+        result = _parse_output(convert_soda_to_provero(soda))
+        assert result["source"]["table"] == "my table"
+
+    def test_single_quoted_table_name_with_space(self):
+        soda = textwrap.dedent("""\
+            checks for 'sales data':
+              - row_count > 0
+        """)
+        result = _parse_output(convert_soda_to_provero(soda))
+        assert result["source"]["table"] == "sales data"
+
+    def test_bare_table_name_still_works(self):
+        soda = textwrap.dedent("""\
+            checks for orders:
+              - row_count > 0
+        """)
+        result = _parse_output(convert_soda_to_provero(soda))
+        assert result["source"]["table"] == "orders"
+
+
+class TestRequiredColumnDedup:
+    def test_duplicate_required_columns_deduplicated(self):
+        # Regression: duplicate required columns produced duplicate not_null
+        # checks for the same column.
+        soda = textwrap.dedent("""\
+            checks for orders:
+              - schema:
+                  fail:
+                    when required column missing: [id, id, name]
+        """)
+        result = _parse_output(convert_soda_to_provero(soda))
+        not_null_cols = [c["not_null"] for c in result["checks"] if "not_null" in c]
+        assert not_null_cols == ["id", "name"]

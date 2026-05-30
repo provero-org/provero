@@ -17,11 +17,19 @@ from __future__ import annotations
 
 import textwrap
 
-from provero.contracts.diff import diff_contracts
+from provero.contracts.diff import (
+    apply_severity_policy,
+    classify_changes,
+    diff_contracts,
+    versioned_diff,
+)
 from provero.contracts.models import (
+    ChangeLevel,
     ColumnContract,
     ContractConfig,
     SchemaContract,
+    SeverityLevel,
+    SeverityPolicy,
     SLAConfig,
     ViolationAction,
 )
@@ -233,6 +241,127 @@ class TestOnViolation:
         assert result.status == "fail"
 
 
+class TestSLAParsingErrors:
+    """A4/A5: malformed SLA strings must yield a violation, not crash."""
+
+    def test_invalid_freshness_sla_returns_violation(self, duckdb_orders):
+        """A4: bad freshness format yields a violation instead of ValueError."""
+        contract = ContractConfig(
+            name="bad_freshness",
+            table="events",
+            sla=SLAConfig(freshness="h24"),  # invalid: no leading digits
+        )
+        # Must not raise; must surface a freshness violation.
+        result = validate_contract(contract, duckdb_orders)
+        fresh_violations = [v for v in result.violations if v.rule == "sla.freshness"]
+        assert len(fresh_violations) == 1
+        assert "h24" in fresh_violations[0].message
+
+    def test_invalid_freshness_sla_numeric_only(self, duckdb_orders):
+        """A4: a bare number ('24', no unit) must not crash."""
+        contract = ContractConfig(
+            name="bad_freshness2",
+            table="events",
+            sla=SLAConfig(freshness="24"),
+        )
+        result = validate_contract(contract, duckdb_orders)
+        assert any(v.rule == "sla.freshness" for v in result.violations)
+
+    def test_invalid_completeness_sla_returns_violation(self, duckdb_orders):
+        """A5: non-numeric completeness yields a violation instead of ValueError."""
+        contract = ContractConfig(
+            name="bad_completeness",
+            table="orders",
+            sla=SLAConfig(completeness="invalid"),
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="order_id"),
+                    ColumnContract(name="status"),
+                ]
+            ),
+        )
+        result = validate_contract(contract, duckdb_orders)
+        comp_violations = [v for v in result.violations if v.rule == "sla.completeness"]
+        assert len(comp_violations) == 1
+        assert "invalid" in comp_violations[0].message
+
+    def test_invalid_completeness_sla_empty_percent(self, duckdb_orders):
+        """A5: a lone '%' must not crash."""
+        contract = ContractConfig(
+            name="bad_completeness2",
+            table="orders",
+            sla=SLAConfig(completeness="%"),
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="order_id"),
+                    ColumnContract(name="status"),
+                ]
+            ),
+        )
+        result = validate_contract(contract, duckdb_orders)
+        assert any(v.rule == "sla.completeness" for v in result.violations)
+
+
+class TestQuarantineSemantics:
+    """A12: QUARANTINE is non-blocking and distinct from BLOCK and WARN."""
+
+    def _violating_contract(self, action):
+        return ContractConfig(
+            name="q_contract",
+            table="orders",
+            on_violation=action,
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="nonexistent", type="varchar"),
+                ]
+            ),
+        )
+
+    def test_quarantine_status_is_distinct_and_non_blocking(self, duckdb_orders):
+        """QUARANTINE status must be 'quarantine', not 'fail' (BLOCK) nor 'warn'."""
+        contract = self._violating_contract(ViolationAction.QUARANTINE)
+        result = validate_contract(contract, duckdb_orders)
+        assert result.status == "quarantine"
+        assert result.status != "fail"
+        assert result.status != "warn"
+        assert len(result.violations) > 0
+
+    def test_quarantine_severity_is_distinct(self, duckdb_orders):
+        """QUARANTINE violations carry severity 'quarantine', not 'critical'/'warning'."""
+        contract = self._violating_contract(ViolationAction.QUARANTINE)
+        result = validate_contract(contract, duckdb_orders)
+        severities = {v.severity for v in result.violations}
+        assert severities == {"quarantine"}
+        # No critical => not treated as a blocking failure.
+        assert not any(v.severity == "critical" for v in result.violations)
+
+    def test_quarantine_differs_from_block(self, duckdb_orders):
+        """Same violation under BLOCK must fail; under QUARANTINE must not fail."""
+        block_result = validate_contract(
+            self._violating_contract(ViolationAction.BLOCK), duckdb_orders
+        )
+        quarantine_result = validate_contract(
+            self._violating_contract(ViolationAction.QUARANTINE), duckdb_orders
+        )
+        assert block_result.status == "fail"
+        assert quarantine_result.status == "quarantine"
+
+    def test_quarantine_passes_when_no_violations(self, duckdb_orders):
+        """QUARANTINE with a satisfied contract still reports 'pass'."""
+        contract = ContractConfig(
+            name="q_ok",
+            table="orders",
+            on_violation=ViolationAction.QUARANTINE,
+            schema_def=SchemaContract(
+                columns=[
+                    ColumnContract(name="order_id", type="integer"),
+                ]
+            ),
+        )
+        result = validate_contract(contract, duckdb_orders)
+        assert result.status == "pass"
+
+
 class TestContractDiff:
     def test_no_changes(self):
         contract = ContractConfig(
@@ -343,6 +472,199 @@ class TestContractDiff:
         violation_changes = [c for c in changes if c.field == "on_violation"]
         assert len(violation_changes) == 1
         assert violation_changes[0].is_breaking is False
+
+
+def _add_col(name: str, type_: str = "varchar") -> ColumnContract:
+    return ColumnContract(name=name, type=type_)
+
+
+class TestVersioningClassification:
+    """Breaking vs non-breaking classification on concrete contract pairs."""
+
+    def _base(self, cols: list[ColumnContract], version: str = "1.0") -> ContractConfig:
+        return ContractConfig(
+            name="c",
+            table="orders",
+            version=version,
+            schema_def=SchemaContract(columns=cols),
+        )
+
+    def test_identical_contracts_classify_as_none(self):
+        contract = self._base([_add_col("id", "integer")])
+        assert classify_changes(diff_contracts(contract, contract)) == ChangeLevel.NONE
+
+    def test_adding_optional_column_is_non_breaking(self):
+        old = self._base([_add_col("id", "integer")])
+        new = self._base([_add_col("id", "integer"), _add_col("name", "varchar")])
+        assert classify_changes(diff_contracts(old, new)) == ChangeLevel.NON_BREAKING
+
+    def test_removing_column_is_breaking(self):
+        old = self._base([_add_col("id", "integer"), _add_col("name", "varchar")])
+        new = self._base([_add_col("id", "integer")])
+        assert classify_changes(diff_contracts(old, new)) == ChangeLevel.BREAKING
+
+    def test_tightening_type_is_breaking(self):
+        old = self._base([_add_col("id", "varchar")])
+        new = self._base([_add_col("id", "integer")])
+        assert classify_changes(diff_contracts(old, new)) == ChangeLevel.BREAKING
+
+
+class TestSeverityPolicy:
+    """Severity policy must escalate a breaking change to blocker."""
+
+    def _breaking_pair(self) -> tuple[ContractConfig, ContractConfig]:
+        old = ContractConfig(
+            name="c",
+            table="orders",
+            schema_def=SchemaContract(
+                columns=[_add_col("id", "integer"), _add_col("name", "varchar")]
+            ),
+        )
+        new = ContractConfig(
+            name="c",
+            table="orders",
+            schema_def=SchemaContract(columns=[_add_col("id", "integer")]),
+        )
+        return old, new
+
+    def test_breaking_change_escalates_to_blocker(self):
+        old, new = self._breaking_pair()
+        changes = diff_contracts(old, new)
+        assert apply_severity_policy(changes, SeverityPolicy()) == SeverityLevel.BLOCKER
+
+    def test_non_breaking_default_is_not_blocker(self):
+        old = ContractConfig(
+            name="c",
+            table="orders",
+            schema_def=SchemaContract(columns=[_add_col("id", "integer")]),
+        )
+        new = ContractConfig(
+            name="c",
+            table="orders",
+            schema_def=SchemaContract(
+                columns=[_add_col("id", "integer"), _add_col("extra", "varchar")]
+            ),
+        )
+        changes = diff_contracts(old, new)
+        assert apply_severity_policy(changes, SeverityPolicy()) == SeverityLevel.INFO
+
+    def test_custom_policy_downgrades_breaking(self):
+        old, new = self._breaking_pair()
+        changes = diff_contracts(old, new)
+        policy = SeverityPolicy(on_breaking=SeverityLevel.WARNING)
+        assert apply_severity_policy(changes, policy) == SeverityLevel.WARNING
+
+    def test_per_rule_override_escalates_specific_field(self):
+        old = ContractConfig(name="c", table="orders", sla=SLAConfig(freshness="24h"))
+        new = ContractConfig(name="c", table="orders", sla=SLAConfig(freshness="1h"))
+        changes = diff_contracts(old, new)
+        # Base on_breaking is WARNING; the per-rule override must beat it.
+        policy = SeverityPolicy(
+            on_breaking=SeverityLevel.WARNING,
+            per_rule={"sla.freshness": SeverityLevel.BLOCKER},
+        )
+        assert apply_severity_policy(changes, policy) == SeverityLevel.BLOCKER
+
+    def test_contract_severity_policy_field_defaults(self):
+        contract = ContractConfig(name="c", table="orders")
+        assert contract.severity_policy.on_breaking == SeverityLevel.BLOCKER
+
+
+class TestVersionedDiff:
+    """Versioned diff output bundles version strings, level, and verdict."""
+
+    def test_versioned_diff_reports_versions_and_blocker(self):
+        old = ContractConfig(
+            name="c",
+            table="orders",
+            version="1.0",
+            schema_def=SchemaContract(
+                columns=[_add_col("id", "integer"), _add_col("name", "varchar")]
+            ),
+        )
+        new = ContractConfig(
+            name="c",
+            table="orders",
+            version="1.1",
+            schema_def=SchemaContract(columns=[_add_col("id", "integer")]),
+        )
+        vd = versioned_diff(old, new)
+        assert vd.old_version == "1.0"
+        assert vd.new_version == "1.1"
+        assert vd.change_level == ChangeLevel.BREAKING
+        assert vd.is_breaking is True
+        assert vd.severity == SeverityLevel.BLOCKER
+        assert vd.is_blocker is True
+        assert len(vd.changes) >= 1
+
+    def test_versioned_diff_warns_breaking_without_major_bump(self):
+        old = ContractConfig(
+            name="c",
+            table="orders",
+            version="1.0",
+            schema_def=SchemaContract(
+                columns=[_add_col("id", "integer"), _add_col("name", "varchar")]
+            ),
+        )
+        new = ContractConfig(
+            name="c",
+            table="orders",
+            version="1.1",
+            schema_def=SchemaContract(columns=[_add_col("id", "integer")]),
+        )
+        vd = versioned_diff(old, new)
+        assert vd.version_bumped is False
+        assert vd.version_warning is True
+
+    def test_versioned_diff_major_bump_clears_warning(self):
+        old = ContractConfig(
+            name="c",
+            table="orders",
+            version="1.0",
+            schema_def=SchemaContract(
+                columns=[_add_col("id", "integer"), _add_col("name", "varchar")]
+            ),
+        )
+        new = ContractConfig(
+            name="c",
+            table="orders",
+            version="2.0",
+            schema_def=SchemaContract(columns=[_add_col("id", "integer")]),
+        )
+        vd = versioned_diff(old, new)
+        assert vd.version_bumped is True
+        assert vd.version_warning is False
+
+    def test_versioned_diff_uses_contract_policy(self):
+        old = ContractConfig(
+            name="c",
+            table="orders",
+            schema_def=SchemaContract(
+                columns=[_add_col("id", "integer"), _add_col("name", "varchar")]
+            ),
+        )
+        new = ContractConfig(
+            name="c",
+            table="orders",
+            severity_policy=SeverityPolicy(on_breaking=SeverityLevel.WARNING),
+            schema_def=SchemaContract(columns=[_add_col("id", "integer")]),
+        )
+        vd = versioned_diff(old, new)
+        assert vd.change_level == ChangeLevel.BREAKING
+        assert vd.severity == SeverityLevel.WARNING
+        assert vd.is_blocker is False
+
+    def test_versioned_diff_no_changes(self):
+        contract = ContractConfig(
+            name="c",
+            table="orders",
+            schema_def=SchemaContract(columns=[_add_col("id", "integer")]),
+        )
+        vd = versioned_diff(contract, contract)
+        assert vd.change_level == ChangeLevel.NONE
+        assert vd.is_breaking is False
+        assert vd.severity == SeverityLevel.INFO
+        assert vd.version_warning is False
 
 
 class TestCompilerParsing:

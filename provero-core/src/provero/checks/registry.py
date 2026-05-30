@@ -59,8 +59,12 @@ def _load_builtins() -> None:
         return
     _BUILTINS_LOADED = True
     import provero.anomaly.checks
+    import provero.checks.cardinality
     import provero.checks.completeness
+    import provero.checks.cross_table
     import provero.checks.custom
+    import provero.checks.distribution
+    import provero.checks.drift
     import provero.checks.freshness
     import provero.checks.referential
     import provero.checks.uniqueness

@@ -234,3 +234,71 @@ class TestRunSuiteMixedBatchAndIndividual:
         assert "row_count" in check_types
         assert "custom_sql" in check_types
         assert result.status == Status.PASS
+
+
+class _DisconnectRaisesConnector:
+    """Wraps a connector but raises in disconnect (parallel cleanup failure).
+
+    Reproduces M1: in parallel mode the per-thread connection cleanup runs in
+    the ``finally`` of ``_run_single_check``. If ``disconnect`` raises, the
+    exception used to propagate out of ``future.result()`` and abort the whole
+    executor loop, discarding every other result.
+    """
+
+    def __init__(self, inner) -> None:
+        self._inner = inner
+        self._main_connection = None
+
+    def connect(self):
+        conn = self._inner.connect()
+        if self._main_connection is None:
+            # The first connect() is the suite-level connection used by the
+            # outer run_suite try/finally; leave its disconnect alone.
+            self._main_connection = conn
+        return conn
+
+    def disconnect(self, connection) -> None:
+        if connection is self._main_connection:
+            self._inner.disconnect(connection)
+            return
+        # Per-thread connection cleanup raises (reproduces M1).
+        raise RuntimeError("simulated cleanup failure on disconnect")
+
+
+class TestParallelDisconnectFailure:
+    def test_disconnect_raise_does_not_abort_parallel_run(self, duckdb_file):
+        # Use a file-based connector so each connect() yields a *distinct*
+        # connection (parallel mode opens one per thread), letting us spare the
+        # main connection's disconnect while failing the per-thread ones.
+        inner = DuckDBConnector(database=str(duckdb_file))
+        # Two non-batchable checks so the parallel branch (len(runnable) > 1)
+        # is taken with optimize disabled.
+        suite = _make_suite(
+            [
+                CheckConfig(
+                    check_type="custom_sql",
+                    params={
+                        "name": "c1",
+                        "query": "SELECT COUNT(*) >= 0 FROM orders",
+                    },
+                ),
+                CheckConfig(
+                    check_type="custom_sql",
+                    params={
+                        "name": "c2",
+                        "query": "SELECT COUNT(*) >= 0 FROM orders",
+                    },
+                ),
+            ]
+        )
+        connector = _DisconnectRaisesConnector(inner)
+
+        # Must not raise, and must return a result for every check.
+        result = run_suite(suite, connector, optimize=False, parallel=True)
+
+        assert result.total == 2
+        # Each check becomes an ERROR result carrying the cleanup failure.
+        assert result.errored == 2
+        for c in result.checks:
+            assert c.status == Status.ERROR
+            assert "simulated cleanup failure" in str(c.observed_value)

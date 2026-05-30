@@ -20,14 +20,17 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import urllib.error
 import urllib.request
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from provero.alerts.models import AlertConfig
     from provero.core.results import SuiteResult
+
+_logger = logging.getLogger("provero.alerts")
 
 
 def _resolve_env_vars(value: str) -> str:
@@ -40,7 +43,7 @@ def _resolve_env_vars(value: str) -> str:
     """
     import re
 
-    def _replace(match: re.Match) -> str:
+    def _replace(match: re.Match[str]) -> str:
         var = match.group(1)
         resolved = os.environ.get(var)
         if resolved is None:
@@ -65,7 +68,7 @@ def _should_fire(alert: AlertConfig, result: SuiteResult) -> bool:
     return result.status == Status.FAIL
 
 
-def _build_payload(result: SuiteResult) -> dict:
+def _build_payload(result: SuiteResult) -> dict[str, Any]:
     """Build the JSON payload for a webhook alert."""
     failed_checks = [
         {
@@ -98,17 +101,35 @@ def send_alert(alert: AlertConfig, result: SuiteResult) -> bool:
     if not _should_fire(alert, result):
         return False
 
-    url = _resolve_env_vars(alert.url)
-    headers = {k: _resolve_env_vars(v) for k, v in alert.headers.items()}
-    headers.setdefault("Content-Type", "application/json")
-
-    payload = json.dumps(_build_payload(result)).encode("utf-8")
-    req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
-
+    # Resolve env-var templates for the URL and every header inside the
+    # protected block.  A missing ``${ENV_VAR}`` (or a malformed URL slipping
+    # past config validation) must degrade to a failed delivery, not crash the
+    # caller, honoring the documented "Returns True on success" contract.
+    url = ""
+    headers: dict[str, str] = {}
     try:
+        url = _resolve_env_vars(alert.url)
+        headers = {k: _resolve_env_vars(v) for k, v in alert.headers.items()}
+        headers.setdefault("Content-Type", "application/json")
+
+        payload = json.dumps(_build_payload(result)).encode("utf-8")
+        req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+
+        # A timeout bounds delivery so a hung/slow endpoint cannot stall the run.
         with urllib.request.urlopen(req, timeout=10) as resp:
-            return 200 <= resp.status < 300
-    except (urllib.error.URLError, urllib.error.HTTPError, OSError):
+            return bool(200 <= resp.status < 300)
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError, ValueError) as exc:
+        # Surface the failure for diagnosis without leaking credentials: the URL
+        # (which may carry userinfo or a token) and headers (e.g. Authorization)
+        # are scrubbed through the redaction layer before they touch the log.
+        from provero.observability.redaction import redact, redact_string
+
+        _logger.warning(
+            "Webhook alert to %s failed: %s (headers=%s)",
+            redact_string(url) if url else redact_string(alert.url),
+            exc,
+            redact(headers),
+        )
         return False
 
 

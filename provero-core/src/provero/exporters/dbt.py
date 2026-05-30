@@ -15,7 +15,9 @@
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
+from numbers import Real
 from typing import Any
 
 import yaml
@@ -34,6 +36,19 @@ _UNMAPPABLE_CHECKS = {
     "custom_sql",
     "latency",
 }
+
+
+def _is_finite_bound(value: Any) -> bool:
+    """Return True if ``value`` is a finite numeric bound usable in SQL.
+
+    Rejects ``inf``/``-inf``/``nan`` (which produce SQL like ``>= inf`` that the
+    warehouse rejects at dbt runtime) and non-numeric / boolean values.
+    """
+    if isinstance(value, bool):
+        return False
+    if not isinstance(value, Real):
+        return False
+    return math.isfinite(float(value))
 
 
 def _build_column_entry(
@@ -66,7 +81,12 @@ def _map_check_to_dbt(
         return check.column, check_type, None
 
     if check_type == "accepted_values":
-        values = check.params.get("values", [])
+        values = check.params.get("values")
+        if not values:
+            detail = "accepted_values"
+            if check.column:
+                detail = f"accepted_values on '{check.column}'"
+            return None, None, f"# {detail}: no values specified"
         return check.column, {"accepted_values": {"values": values}}, None
 
     if check_type == "range":
@@ -74,10 +94,24 @@ def _map_check_to_dbt(
         min_val = check.params.get("min")
         max_val = check.params.get("max")
         parts = []
+        invalid = []
         if min_val is not None:
-            parts.append(f">= {min_val}")
+            if _is_finite_bound(min_val):
+                parts.append(f">= {min_val}")
+            else:
+                invalid.append(f"min={min_val!r}")
         if max_val is not None:
-            parts.append(f"<= {max_val}")
+            if _is_finite_bound(max_val):
+                parts.append(f"<= {max_val}")
+            else:
+                invalid.append(f"max={max_val!r}")
+        if invalid:
+            detail = f"range check on '{column}'" if column else "range check"
+            return (
+                None,
+                None,
+                f"# {detail}: non-finite/invalid bound ({', '.join(invalid)}) skipped",
+            )
         expression = " and ".join(parts)
         if expression:
             return (
@@ -85,7 +119,7 @@ def _map_check_to_dbt(
                 {"dbt_utils.expression_is_true": {"expression": expression}},
                 None,
             )
-        return column, None, f"# range check on '{column}': no min/max specified"
+        return None, None, f"# range check on '{column}': no min/max specified"
 
     if check_type in _UNMAPPABLE_CHECKS:
         detail = check_type

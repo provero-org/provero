@@ -1,0 +1,1 @@
+Add connection pooling and bounded retry-with-backoff for SQLAlchemy-backed connectors, configurable per source via `pool_size`, `max_overflow`, `pool_pre_ping`, `pool_recycle`, `pool_timeout`, `connect_timeout`, and `retry_attempts`/`retry_base_delay`/`retry_max_delay`/`retry_jitter`. Only transient connection errors are retried; programming errors fail immediately.

@@ -118,6 +118,49 @@ class TestAnomalyCheck:
         # 5 vs ~1000 has modified z-score ~134, but threshold=1000 allows it
         assert result.status == Status.PASS
 
+    def test_threshold_override_zero_errors(self, duckdb_orders):
+        """A6: threshold override of 0 must error gracefully, not crash."""
+        runner = get_check_runner("anomaly")
+        config = CheckConfig(
+            check_type="anomaly",
+            params={
+                "metric": "row_count",
+                "threshold": 0,
+                "_history": [1000.0, 1010.0, 990.0, 1005.0, 995.0, 1002.0],
+            },
+        )
+        result = runner(connection=duckdb_orders, table="orders", check_config=config)
+        assert result.status == Status.ERROR
+        assert "threshold" in str(result.observed_value).lower()
+
+    def test_threshold_override_invalid_string_errors(self, duckdb_orders):
+        """A non-numeric threshold override must error gracefully."""
+        runner = get_check_runner("anomaly")
+        config = CheckConfig(
+            check_type="anomaly",
+            params={
+                "metric": "row_count",
+                "threshold": "abc",
+                "_history": [1000.0, 1010.0, 990.0, 1005.0, 995.0, 1002.0],
+            },
+        )
+        result = runner(connection=duckdb_orders, table="orders", check_config=config)
+        assert result.status == Status.ERROR
+
+    def test_non_finite_history_errors(self, duckdb_orders):
+        """A7: inf in injected history must error, not silently mislead."""
+        runner = get_check_runner("anomaly")
+        config = CheckConfig(
+            check_type="anomaly",
+            params={
+                "metric": "row_count",
+                "_history": [1000.0, 1010.0, float("inf"), 1005.0, 995.0, 1002.0],
+            },
+        )
+        result = runner(connection=duckdb_orders, table="orders", check_config=config)
+        assert result.status == Status.ERROR
+        assert "non-finite" in str(result.observed_value).lower()
+
 
 class TestRowCountChange:
     def test_no_suite_context_skips(self, duckdb_orders):
@@ -138,6 +181,28 @@ class TestRowCountChange:
         assert result.status == Status.PASS
         assert result.row_count == 5
         assert "first run" in str(result.observed_value)
+
+    def test_invalid_threshold_errors(self, duckdb_orders):
+        """Malformed max_decrease/max_increase must error gracefully, not raise."""
+        runner = get_check_runner("row_count_change")
+        config = CheckConfig(
+            check_type="row_count_change",
+            params={"_suite_name": "test", "max_decrease": "not-a-number"},
+        )
+        result = runner(connection=duckdb_orders, table="orders", check_config=config)
+        assert result.status == Status.ERROR
+        assert "threshold" in str(result.observed_value).lower()
+
+    def test_negative_threshold_errors(self, duckdb_orders):
+        """A negative max_decrease must error, not silently invert semantics."""
+        runner = get_check_runner("row_count_change")
+        config = CheckConfig(
+            check_type="row_count_change",
+            params={"_suite_name": "test", "max_decrease": "-20%"},
+        )
+        result = runner(connection=duckdb_orders, table="orders", check_config=config)
+        assert result.status == Status.ERROR
+        assert "negative" in str(result.observed_value).lower()
 
     def test_row_count_change_with_store(self, duckdb_orders, sqlite_store):
         """Test row_count_change stores its own metric."""

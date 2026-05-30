@@ -120,6 +120,46 @@ class TestXSS:
         assert "<script>document.cookie</script>" not in html
 
 
+class TestWebhookLogRedaction:
+    """Outbound webhook failures must be logged without leaking credentials."""
+
+    def _failing_result(self) -> SuiteResult:
+        check = CheckResult(
+            check_name="not_null:id",
+            check_type="not_null",
+            status=Status.FAIL,
+            severity=Severity.CRITICAL,
+            column="id",
+        )
+        result = SuiteResult(suite_name="redact_test", status=Status.PASS, checks=[check])
+        result.compute_status()
+        return result
+
+    def test_failure_log_redacts_url_password(self, caplog):
+        import logging
+
+        from provero.alerts.models import AlertConfig
+        from provero.alerts.sender import send_alert
+
+        # Userinfo password in the URL plus a bearer token header. The endpoint
+        # (port 1) refuses the connection, so the failure path runs and logs.
+        alert = AlertConfig(
+            url="http://user:sup3rs3cret@127.0.0.1:1/hook",
+            trigger="on_failure",
+            headers={"Authorization": "Bearer tok-abcdef123456"},
+        )
+        with caplog.at_level(logging.WARNING, logger="provero.alerts"):
+            ok = send_alert(alert, self._failing_result())
+
+        assert ok is False
+        logged = caplog.text
+        # The raw secrets must never appear in the log.
+        assert "sup3rs3cret" not in logged
+        assert "tok-abcdef123456" not in logged
+        # The redaction marker proves the scrubber ran on the logged values.
+        assert "***REDACTED***" in logged
+
+
 class TestPluginSecurity:
     def test_check_plugin_no_override(self):
         """Built-in checks should not be silently overridden by plugins."""

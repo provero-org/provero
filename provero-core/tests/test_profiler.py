@@ -78,6 +78,66 @@ class TestProfileTable:
         assert status_col.top_values[0]["value"] == "delivered"  # most common
 
 
+@pytest.fixture
+def interval_connection():
+    connector = DuckDBConnector()
+    conn = connector.connect()
+    conn._conn.execute("""
+        CREATE TABLE events (
+            event_id INTEGER,
+            duration INTERVAL,
+            label VARCHAR
+        )
+    """)
+    conn._conn.execute("""
+        INSERT INTO events VALUES
+        (1, INTERVAL 1 DAY, 'a'),
+        (2, INTERVAL 2 HOUR, 'b'),
+        (3, INTERVAL 30 MINUTE, 'c')
+    """)
+    yield conn
+    connector.disconnect(conn)
+
+
+class TestIntervalTypeDetection:
+    """Regression for A8: INTERVAL must not be misclassified as numeric."""
+
+    def test_profile_table_with_interval_does_not_crash(self, interval_connection):
+        # Old behavior: 'int' in 'interval' -> numeric path -> CAST to DOUBLE
+        # crashes with "Unimplemented type for cast (INTERVAL -> DOUBLE)".
+        profile = profile_table(interval_connection, "events")
+        assert profile.row_count == 3
+
+    def test_interval_column_gets_no_numeric_stats(self, interval_connection):
+        profile = profile_table(interval_connection, "events")
+        duration = next(c for c in profile.columns if c.name == "duration")
+        assert duration.min_value is None
+        assert duration.max_value is None
+        assert duration.mean_value is None
+        assert duration.stddev_value is None
+        assert duration.median_value is None
+
+    def test_real_numeric_column_still_profiled(self, interval_connection):
+        profile = profile_table(interval_connection, "events")
+        event_id = next(c for c in profile.columns if c.name == "event_id")
+        assert event_id.min_value is not None
+        assert event_id.max_value is not None
+        assert event_id.mean_value is not None
+
+    def test_decimal_with_params_still_numeric(self, orders_connection):
+        # Ensures the base-type normalization does not regress DECIMAL(10,2).
+        profile = profile_table(orders_connection, "orders")
+        amount = next(c for c in profile.columns if c.name == "amount")
+        assert amount.min_value is not None
+        assert amount.mean_value is not None
+
+    def test_string_column_still_profiled(self, interval_connection):
+        profile = profile_table(interval_connection, "events")
+        label = next(c for c in profile.columns if c.name == "label")
+        assert label.min_length is not None
+        assert label.max_length is not None
+
+
 class TestSuggestChecks:
     def test_suggests_not_null(self, orders_connection):
         profile = profile_table(orders_connection, "orders")

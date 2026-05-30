@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+from types import TracebackType
 from typing import Any, cast
 
 import duckdb
@@ -23,13 +24,37 @@ from provero.core.sql import is_expression, quote_identifier
 
 
 class DuckDBConnection:
-    """DuckDB connection wrapper."""
+    """DuckDB connection wrapper.
+
+    Supports the context-manager protocol so the underlying DuckDB
+    connection is always closed, even when used directly::
+
+        with connector.connect() as conn:
+            conn.execute("SELECT 1")
+    """
 
     def __init__(self, conn: duckdb.DuckDBPyConnection) -> None:
         self._conn = conn
 
+    def close(self) -> None:
+        self._conn.close()
+
+    def __enter__(self) -> DuckDBConnection:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.close()
+
     def execute(self, query: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-        result = self._conn.execute(query)
+        # DuckDB binds named placeholders ($name) from a dict; passing the
+        # params through honours the protocol contract instead of silently
+        # dropping them.
+        result = self._conn.execute(query, params) if params else self._conn.execute(query)
         columns = [desc[0] for desc in result.description]
         return [dict(zip(columns, row, strict=True)) for row in result.fetchall()]
 
@@ -55,7 +80,7 @@ class DuckDBConnector:
         return DuckDBConnection(conn)
 
     def disconnect(self, connection: DuckDBConnection) -> None:
-        connection._conn.close()
+        connection.close()
 
     def get_schema(self, connection: DuckDBConnection, table: str) -> list[dict[str, Any]]:
         return connection.get_columns(table)

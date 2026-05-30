@@ -240,6 +240,7 @@ def _register_commands() -> None:
         "provero.cli.commands.init",
         "provero.cli.commands.profile",
         "provero.cli.commands.run",
+        "provero.cli.commands.serve",
         "provero.cli.commands.validate",
         "provero.cli.commands.watch",
     ):

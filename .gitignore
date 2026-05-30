@@ -46,3 +46,7 @@ site/
 
 # Data directories
 .provero/
+ANALYSIS.md
+BUGFIX_REPORT.md
+FEATURES_REPORT.md
+awesome-data-contracts/

@@ -89,6 +89,59 @@
         "conn_id": {
           "type": "string",
           "description": "Airflow connection ID"
+        },
+        "pool_size": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "SQLAlchemy connection pool size (driver default if unset)"
+        },
+        "max_overflow": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Extra connections allowed beyond pool_size (driver default if unset)"
+        },
+        "pool_pre_ping": {
+          "type": "boolean",
+          "description": "Test pooled connections for liveness before use"
+        },
+        "pool_recycle": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Recycle pooled connections older than N seconds"
+        },
+        "pool_timeout": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Seconds to wait for a connection from the pool"
+        },
+        "connect_timeout": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Best-effort connect timeout in seconds (postgres/mysql/snowflake only)"
+        },
+        "query_timeout": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Best-effort query timeout in seconds (snowflake/mysql only; not enforced on postgres)"
+        },
+        "retries": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Total attempts on transient connection/query errors (1 disables retry)"
+        },
+        "retry_base_delay": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Base backoff delay in seconds for retries"
+        },
+        "retry_max_delay": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum backoff delay in seconds for retries"
+        },
+        "retry_jitter": {
+          "type": "boolean",
+          "description": "Apply full jitter to retry backoff"
         }
       }
     },
@@ -315,6 +368,94 @@
             }
           },
           "required": ["referential_integrity"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "distribution": {
+              "type": "object",
+              "required": ["column"],
+              "properties": {
+                "column": { "type": "string" },
+                "mean": { "type": "number" },
+                "mean_tolerance": { "type": "number", "minimum": 0 },
+                "mean_min": { "type": "number" },
+                "mean_max": { "type": "number" },
+                "stddev": { "type": "number" },
+                "stddev_tolerance": { "type": "number", "minimum": 0 },
+                "stddev_min": { "type": "number" },
+                "stddev_max": { "type": "number" },
+                "severity": { "$ref": "#/$defs/severity" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": ["distribution"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "cardinality": {
+              "type": "object",
+              "required": ["column"],
+              "properties": {
+                "column": { "type": "string" },
+                "min": { "type": "integer", "minimum": 0 },
+                "max": { "type": "integer", "minimum": 0 },
+                "min_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+                "max_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+                "severity": { "$ref": "#/$defs/severity" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": ["cardinality"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "drift": {
+              "type": "object",
+              "required": ["column", "baseline"],
+              "properties": {
+                "column": { "type": "string" },
+                "baseline": {
+                  "type": "object",
+                  "minProperties": 1,
+                  "additionalProperties": { "type": "number" }
+                },
+                "threshold": { "type": "number", "minimum": 0 },
+                "warn_threshold": { "type": "number", "minimum": 0 },
+                "epsilon": { "type": "number", "exclusiveMinimum": 0 },
+                "severity": { "$ref": "#/$defs/severity" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": ["drift"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "cross_table_count": {
+              "type": "object",
+              "properties": {
+                "other_table": { "type": "string" },
+                "reference_table": { "type": "string" },
+                "mode": { "type": "string", "enum": ["parity", "ratio"] },
+                "tolerance": { "type": "integer", "minimum": 0 },
+                "min_ratio": { "type": "number", "minimum": 0 },
+                "max_ratio": { "type": "number", "minimum": 0 },
+                "severity": { "$ref": "#/$defs/severity" }
+              },
+              "anyOf": [
+                { "required": ["other_table"] },
+                { "required": ["reference_table"] }
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": ["cross_table_count"]
         }
       ]
     },
@@ -415,6 +556,25 @@
         "on_violation": {
           "type": "string",
           "enum": ["block", "warn", "quarantine"]
+        },
+        "severity_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Map contract change levels to severities for breaking-change gating",
+          "properties": {
+            "on_breaking": {
+              "enum": ["info", "warning", "blocker"],
+              "default": "blocker"
+            },
+            "on_non_breaking": {
+              "enum": ["info", "warning", "blocker"],
+              "default": "info"
+            },
+            "per_rule": {
+              "type": "object",
+              "additionalProperties": { "enum": ["info", "warning", "blocker"] }
+            }
+          }
         }
       }
     }

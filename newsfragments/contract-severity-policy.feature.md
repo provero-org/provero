@@ -1,0 +1,1 @@
+Add severity policies and breaking-change classification to contract diffing: `diff_contracts` marks each change as breaking or non-breaking, `classify_changes` summarizes the change level, and a `SeverityPolicy` (with optional per-rule overrides) maps changes to a severity. `versioned_diff` applies the policy and warns when a breaking change ships without a major version bump.

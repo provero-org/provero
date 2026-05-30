@@ -15,6 +15,8 @@
 
 from __future__ import annotations
 
+import math
+
 from provero.anomaly.detectors import detect_anomaly
 from provero.checks.registry import register_check
 from provero.connectors.base import Connection
@@ -174,6 +176,16 @@ def check_anomaly(
             observed_value=f"Unsupported metric '{metric}' or no data",
         )
 
+    if not math.isfinite(current):
+        return CheckResult(
+            check_name=check_label,
+            check_type="anomaly",
+            status=Status.ERROR,
+            severity=severity,
+            column=col,
+            observed_value=f"Non-finite current value for metric '{metric}': {current}",
+        )
+
     # 2. Get historical values (use check_label to match what store saves)
     historical = _get_history(check_config.params, check_name_override=check_label)
 
@@ -188,15 +200,45 @@ def check_anomaly(
             expected_value=f"method={method}, sensitivity={sensitivity}",
         )
 
+    if any(not math.isfinite(v) for v in historical):
+        return CheckResult(
+            check_name=check_label,
+            check_type="anomaly",
+            status=Status.ERROR,
+            severity=severity,
+            column=col,
+            observed_value=f"Non-finite value (inf/nan) in history for metric '{metric}'",
+        )
+
     # 3. Run anomaly detection
     if threshold_override is not None:
         # Use direct threshold, bypass sensitivity mapping
+        try:
+            threshold = float(threshold_override)
+        except (TypeError, ValueError):
+            return CheckResult(
+                check_name=check_label,
+                check_type="anomaly",
+                status=Status.ERROR,
+                severity=severity,
+                column=col,
+                observed_value=f"Invalid threshold override: {threshold_override!r}",
+            )
+        if not math.isfinite(threshold) or threshold <= 0:
+            return CheckResult(
+                check_name=check_label,
+                check_type="anomaly",
+                status=Status.ERROR,
+                severity=severity,
+                column=col,
+                observed_value=f"Invalid threshold {threshold!r}; must be a finite value > 0",
+            )
         detector = {"zscore": "zscore", "mad": "mad", "iqr": "iqr"}.get(method, "mad")
         from provero.anomaly.detectors import _DETECTORS
 
         detect_fn = _DETECTORS.get(detector)
         if detect_fn:
-            result = detect_fn(historical, current, float(threshold_override))
+            result = detect_fn(historical, current, threshold)
             result.sensitivity = sensitivity
         else:
             result = detect_anomaly(historical, current, method=method, sensitivity=sensitivity)
@@ -242,8 +284,32 @@ def check_row_count_change(
 
     severity = Severity(check_config.severity) if check_config.severity else Severity.WARNING
 
-    max_decrease = float(max_decrease_str.rstrip("%")) / 100.0
-    max_increase = float(max_increase_str.rstrip("%")) / 100.0
+    try:
+        max_decrease = float(str(max_decrease_str).rstrip("%")) / 100.0
+        max_increase = float(str(max_increase_str).rstrip("%")) / 100.0
+    except (TypeError, ValueError):
+        return CheckResult(
+            check_name="row_count_change",
+            check_type="row_count_change",
+            status=Status.ERROR,
+            severity=severity,
+            observed_value=(
+                f"Invalid threshold: max_decrease={max_decrease_str!r}, "
+                f"max_increase={max_increase_str!r}"
+            ),
+        )
+
+    if max_decrease < 0 or max_increase < 0:
+        return CheckResult(
+            check_name="row_count_change",
+            check_type="row_count_change",
+            status=Status.ERROR,
+            severity=severity,
+            observed_value=(
+                f"Negative threshold not allowed: max_decrease={max_decrease_str!r}, "
+                f"max_increase={max_increase_str!r}"
+            ),
+        )
 
     # Query current row count from data source
     qtable = quote_identifier(table)

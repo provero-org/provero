@@ -20,6 +20,9 @@ import textwrap
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 
+import pytest
+from pydantic import ValidationError
+
 from provero.alerts.models import AlertConfig
 from provero.alerts.sender import _build_payload, _should_fire, send_alert, send_alerts
 from provero.core.compiler import compile_file
@@ -133,6 +136,84 @@ class TestSendAlert:
         result = _make_result(Status.PASS)
         ok = send_alert(alert, result)
         assert ok is False
+
+
+class TestEnvVarResolution:
+    """Regression tests for A1/A2: missing env vars must degrade, not crash."""
+
+    def test_missing_env_var_in_url_returns_false(self, monkeypatch):
+        # A1: ${VAR} in url with the variable unset must not raise ValueError.
+        monkeypatch.delenv("PROVERO_TEST_MISSING_URL", raising=False)
+        alert = AlertConfig(
+            url="https://hooks.example.com/${PROVERO_TEST_MISSING_URL}",
+            trigger="on_failure",
+        )
+        result = _make_result(Status.FAIL)
+        ok = send_alert(alert, result)
+        assert ok is False
+
+    def test_missing_env_var_in_header_returns_false(self, monkeypatch):
+        # A2: ${VAR} in a header with the variable unset must not raise.
+        monkeypatch.delenv("PROVERO_TEST_MISSING_HDR", raising=False)
+        alert = AlertConfig(
+            url="http://127.0.0.1:1/hook",
+            trigger="on_failure",
+            headers={"Authorization": "Bearer ${PROVERO_TEST_MISSING_HDR}"},
+        )
+        result = _make_result(Status.FAIL)
+        ok = send_alert(alert, result)
+        assert ok is False
+
+    def test_send_alerts_isolates_env_var_failure(self, monkeypatch):
+        # A2: a failing alert must not abort delivery of the remaining ones.
+        monkeypatch.delenv("PROVERO_TEST_MISSING_BATCH", raising=False)
+        alerts = [
+            AlertConfig(
+                url="https://a.example.com/${PROVERO_TEST_MISSING_BATCH}",
+                trigger="on_failure",
+            ),
+            AlertConfig(url="http://127.0.0.1:1/b", trigger="on_failure"),
+        ]
+        result = _make_result(Status.FAIL)
+        outcomes = send_alerts(alerts, result)
+        assert outcomes == [False, False]
+
+
+class TestAlertConfigValidation:
+    """Regression tests for A3: url shape and trigger enum validation."""
+
+    def test_invalid_url_rejected(self):
+        with pytest.raises(ValidationError):
+            AlertConfig(url="not-a-url", trigger="on_failure")
+
+    def test_url_without_scheme_rejected(self):
+        with pytest.raises(ValidationError):
+            AlertConfig(url="hooks.example.com/path", trigger="on_failure")
+
+    def test_non_http_scheme_rejected(self):
+        with pytest.raises(ValidationError):
+            AlertConfig(url="ftp://hooks.example.com/path", trigger="on_failure")
+
+    def test_invalid_trigger_rejected(self):
+        with pytest.raises(ValidationError):
+            AlertConfig(url="https://hooks.example.com/x", trigger="on_maybe")
+
+    def test_valid_https_url_accepted(self):
+        alert = AlertConfig(url="https://hooks.example.com/x", trigger="always")
+        assert alert.url == "https://hooks.example.com/x"
+        assert alert.trigger == "always"
+
+    def test_env_var_template_url_accepted(self):
+        # ${VAR} templates must pass shape validation (resolved later by sender).
+        alert = AlertConfig(
+            url="https://${WEBHOOK_HOST}/hook",
+            trigger="on_failure",
+        )
+        assert alert.url == "https://${WEBHOOK_HOST}/hook"
+
+    def test_empty_url_accepted_as_noop(self):
+        alert = AlertConfig()
+        assert alert.url == ""
 
 
 class TestSendAlerts:

@@ -26,12 +26,33 @@ from provero.contracts.models import ContractConfig
 
 
 class SourceConfig(BaseModel):
-    """Data source configuration."""
+    """Data source configuration.
+
+    The ``pool_*`` and ``retry*`` fields are optional, default-safe knobs for
+    SQLAlchemy-backed connectors (postgres/mysql/snowflake/bigquery/redshift/
+    databricks). When all are unset the connector behaves exactly as before
+    (no pool sizing, retry disabled). They are silently ignored by connectors
+    that do not support them (duckdb, dataframe). Timeout enforcement is
+    best-effort and driver-specific; see ``connectors/pool.py``.
+    """
 
     type: str
     connection: str = ""
     table: str = ""
     conn_id: str = ""  # Airflow connection ID
+    # Connection-pool tuning (None = driver default).
+    pool_size: int | None = None
+    max_overflow: int | None = None
+    pool_pre_ping: bool | None = None
+    pool_recycle: int | None = None
+    pool_timeout: float | None = None
+    connect_timeout: float | None = None
+    query_timeout: float | None = None
+    # Transient-error retry tuning (retries None/<=1 = disabled).
+    retries: int | None = None
+    retry_base_delay: float | None = None
+    retry_max_delay: float | None = None
+    retry_jitter: bool | None = None
 
 
 class CheckConfig(BaseModel):
@@ -199,6 +220,8 @@ def _parse_contracts(raw_contracts: list[dict[str, Any]]) -> list[ContractConfig
         ColumnContract,
         ContractConfig,
         SchemaContract,
+        SeverityLevel,
+        SeverityPolicy,
         SLAConfig,
         ViolationAction,
     )
@@ -231,6 +254,15 @@ def _parse_contracts(raw_contracts: list[dict[str, Any]]) -> list[ContractConfig
         if "on_violation" in raw:
             on_violation = ViolationAction(raw["on_violation"])
 
+        severity_policy = SeverityPolicy()
+        if "severity_policy" in raw:
+            sp = raw["severity_policy"]
+            severity_policy = SeverityPolicy(
+                on_breaking=SeverityLevel(sp.get("on_breaking", "blocker")),
+                on_non_breaking=SeverityLevel(sp.get("on_non_breaking", "info")),
+                per_rule={k: SeverityLevel(v) for k, v in sp.get("per_rule", {}).items()},
+            )
+
         contracts.append(
             ContractConfig(
                 name=raw["name"],
@@ -241,6 +273,7 @@ def _parse_contracts(raw_contracts: list[dict[str, Any]]) -> list[ContractConfig
                 sla=sla,
                 schema_def=schema_def,
                 on_violation=on_violation,
+                severity_policy=severity_policy,
             )
         )
 

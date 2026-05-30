@@ -199,12 +199,14 @@ def watch(
 
             exit_code = 0
             csv_header_written = iteration > 1
+            matched_any = False
 
             for suite_config in provero_config.suites:
                 if suite and suite_config.name != suite:
                     continue
                 if tag and tag not in suite_config.tags:
                     continue
+                matched_any = True
 
                 connector = create_connector(suite_config.source)
                 result = run_suite(suite_config, connector, optimize=not no_optimize)
@@ -222,6 +224,12 @@ def watch(
 
                 if result.failed > 0 or result.errored > 0:
                     exit_code = 1
+
+            if (suite or tag) and not matched_any:
+                # A filter was given but matched no suite. Warn so that a
+                # misconfigured --suite/--tag is not silently masked.
+                _filter_desc = f"suite '{suite}'" if suite else f"tag '{tag}'"
+                _echo(f"[yellow]Warning: no suite matched {_filter_desc}; nothing ran.[/yellow]")
 
             if exit_code:
                 any_failure = True

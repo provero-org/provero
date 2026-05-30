@@ -1,0 +1,1 @@
+Add CI output formats to `provero run`: `--format sarif` emits a SARIF document for code-scanning integrations and `--format junit` emits JUnit XML for test-report integrations, each rendered once as a whole-run document covering checks and contract results.

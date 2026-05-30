@@ -59,6 +59,61 @@ class TestGetSchema:
         assert "VARCHAR" in type_map["name"]
 
 
+class TestContextManager:
+    """Regression tests for A9: connections must support ``with`` (no leak)."""
+
+    def test_with_block_closes_connection(self):
+        connector = DuckDBConnector()
+        with connector.connect() as conn:
+            assert conn.execute("SELECT 1 AS one")[0]["one"] == 1
+        # After the with block the underlying connection must be closed.
+        with pytest.raises(Exception, match=r"[Cc]losed"):
+            conn.execute("SELECT 1")
+
+    def test_enter_returns_connection(self):
+        connector = DuckDBConnector()
+        conn = connector.connect()
+        with conn as entered:
+            assert entered is conn
+
+    def test_with_block_closes_on_exception(self):
+        connector = DuckDBConnector()
+        conn = connector.connect()
+        with pytest.raises(RuntimeError), conn:
+            raise RuntimeError("boom")
+        # Connection still closed despite the exception propagating.
+        with pytest.raises(Exception, match=r"[Cc]losed"):
+            conn.execute("SELECT 1")
+
+    def test_close_method(self):
+        connector = DuckDBConnector()
+        conn = connector.connect()
+        conn.close()
+        with pytest.raises(Exception, match=r"[Cc]losed"):
+            conn.execute("SELECT 1")
+
+
+class TestExecuteParams:
+    """Regression for M11: execute() must honour its params argument."""
+
+    def test_named_params_are_bound(self):
+        connector = DuckDBConnector()
+        conn = connector.connect()
+        conn._conn.execute("CREATE TABLE t (id INTEGER, name VARCHAR)")
+        conn._conn.execute("INSERT INTO t VALUES (1, 'a'), (2, 'b')")
+        # Old behaviour dropped params, so the named placeholder raised
+        # "Values were not provided". With params bound it filters correctly.
+        rows = conn.execute("SELECT name FROM t WHERE id = $id", {"id": 2})
+        assert rows == [{"name": "b"}]
+        connector.disconnect(conn)
+
+    def test_no_params_still_works(self):
+        connector = DuckDBConnector()
+        conn = connector.connect()
+        assert conn.execute("SELECT 1 AS one") == [{"one": 1}]
+        connector.disconnect(conn)
+
+
 class TestGetProfile:
     def test_returns_profile_data(self, duckdb_with_data):
         connector, conn = duckdb_with_data

@@ -15,8 +15,9 @@
 
 from __future__ import annotations
 
+import json as json_mod
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 
@@ -29,6 +30,42 @@ from provero.cli.main import (
     console,
     is_quiet,
 )
+
+if TYPE_CHECKING:
+    from provero.core.results import SuiteResult
+    from provero.observability import PrometheusObserver
+
+
+def _render_ci(results: list[SuiteResult], fmt: str) -> str:
+    """Render all suite results as a single SARIF or JUnit document.
+
+    SARIF and JUnit are whole-run documents, so every suite's output is merged
+    into one document rather than emitted per-suite.
+    """
+    from xml.etree import ElementTree as ET
+
+    from provero.exporters.junit import build_junit
+    from provero.exporters.sarif import build_sarif
+
+    if fmt == "sarif":
+        runs: list[object] = []
+        for r in results:
+            runs.extend(build_sarif(r)["runs"])
+        doc = {
+            "version": "2.1.0",
+            "$schema": (
+                "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/"
+                "master/Schemas/sarif-schema-2.1.0.json"
+            ),
+            "runs": runs,
+        }
+        return json_mod.dumps(doc, indent=2)
+
+    # junit: wrap every <testsuite> element in one <testsuites> root.
+    root = ET.Element("testsuites")
+    for r in results:
+        root.append(build_junit(r))
+    return '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(root, encoding="unicode")
 
 
 @app.command()
@@ -66,9 +103,17 @@ def run(
         typer.Option(
             "--format",
             "-f",
-            help="Output format for check results. One of: table, json, csv.",
+            help="Output format for check results. One of: table, json, csv, sarif, junit.",
         ),
     ] = "table",
+    output_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Write the formatted output to this file instead of stdout.",
+        ),
+    ] = None,
     no_store: Annotated[
         bool,
         typer.Option(
@@ -95,6 +140,30 @@ def run(
         typer.Option(
             "--report",
             help="Generate a report after the run. Supported values: html.",
+        ),
+    ] = None,
+    audit_log: Annotated[
+        Path | None,
+        typer.Option(
+            "--audit-log",
+            help="Append a structured JSON audit log of the run to this file.",
+        ),
+    ] = None,
+    otel: Annotated[
+        bool,
+        typer.Option(
+            "--otel",
+            help="Emit OpenTelemetry spans (requires the 'otel' extra).",
+        ),
+    ] = False,
+    metrics_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--prometheus",
+            help=(
+                "Write Prometheus text exposition for the run to this file "
+                "(requires the 'prometheus' extra)."
+            ),
         ),
     ] = None,
 ) -> None:
@@ -128,6 +197,34 @@ def run(
 
     provero_config = compile_file(config)
 
+    # Wire optional observability observers for this run. They are cleared in
+    # the finally block so repeated CLI invocations never accumulate observers.
+    prometheus_observer: PrometheusObserver | None = None
+    if audit_log is not None or otel or metrics_file is not None:
+        from provero.observability import register_observer
+
+        if audit_log is not None:
+            from provero.observability import AuditLogObserver
+
+            register_observer(AuditLogObserver(path=audit_log))
+        if otel:
+            from provero.observability import OTelObserver
+
+            try:
+                register_observer(OTelObserver())
+            except RuntimeError as exc:
+                console.print(f"[red]{exc}[/red]")
+                raise typer.Exit(1) from exc
+        if metrics_file is not None:
+            from provero.observability import PrometheusObserver
+
+            try:
+                prometheus_observer = PrometheusObserver()
+            except RuntimeError as exc:
+                console.print(f"[red]{exc}[/red]")
+                raise typer.Exit(1) from exc
+            register_observer(prometheus_observer)
+
     store = None
     if not no_store:
         from provero.store.sqlite import SQLiteStore
@@ -153,7 +250,11 @@ def run(
 
         all_results.append(result)
 
-        if is_quiet():
+        # sarif/junit are whole-run documents emitted once after the loop, so
+        # they must not be printed per-suite here.
+        if output_format in ("sarif", "junit"):
+            pass
+        elif is_quiet():
             # In quiet mode only emit structured formats (json/csv).
             if output_format == "json":
                 typer.echo(result.model_dump_json(indent=2))
@@ -172,6 +273,21 @@ def run(
 
         if result.failed > 0 or result.errored > 0:
             exit_code = 1
+
+    if (suite or tag) and not all_results:
+        # A filter was given but matched no suite. Running with zero checks and
+        # exiting 0 would silently mask a misconfigured --suite/--tag in CI.
+        _filter_desc = f"suite '{suite}'" if suite else f"tag '{tag}'"
+        _echo(f"[yellow]Warning: no suite matched {_filter_desc}; nothing ran.[/yellow]")
+
+    # CI output formats (sarif/junit) are whole-run documents: render once over
+    # all collected suite results, then write to --output or stdout.
+    if output_format in ("sarif", "junit") and all_results:
+        rendered = _render_ci(all_results, output_format)
+        if output_file is not None:
+            output_file.write_text(rendered, encoding="utf-8")
+        else:
+            typer.echo(rendered)
 
     # Run contracts if present
     if provero_config.contracts:
@@ -196,18 +312,18 @@ def run(
 
     # Send alerts if configured
     if not no_alerts and provero_config.alerts:
-        from provero.alerts.sender import send_alerts
+        from provero.alerts.sender import _should_fire, send_alerts
 
         for result in all_results:
             outcomes = send_alerts(provero_config.alerts, result)
             for alert_cfg, ok in zip(provero_config.alerts, outcomes, strict=True):
                 if ok:
                     _echo(f"[green]Alert sent to {alert_cfg.url}[/green]")
-                elif ok is False and result.failed > 0:
-                    from provero.alerts.sender import _should_fire
-
-                    if _should_fire(alert_cfg, result):
-                        _echo(f"[yellow]Alert delivery failed: {alert_cfg.url}[/yellow]")
+                elif _should_fire(alert_cfg, result):
+                    # The alert should have fired but delivery returned False.
+                    # Warn regardless of pass/fail status so that failed
+                    # ``always``/``on_success`` deliveries are not silenced.
+                    _echo(f"[yellow]Alert delivery failed: {alert_cfg.url}[/yellow]")
 
     # Generate HTML report if requested
     if report == "html" and all_results:
@@ -222,9 +338,21 @@ def run(
             )
             _echo(f"\n[green]HTML report: {report_path}[/green]")
 
+    # Write Prometheus exposition for this run, if requested.
+    if prometheus_observer is not None and metrics_file is not None:
+        from provero.observability import render_metrics
+
+        metrics_file.parent.mkdir(parents=True, exist_ok=True)
+        metrics_file.write_text(render_metrics(prometheus_observer))
+        _echo(f"\n[green]Metrics written: {metrics_file}[/green]")
+
     try:
         if exit_code:
             raise typer.Exit(exit_code)
     finally:
         if store:
             store.close()
+        if audit_log is not None or otel or metrics_file is not None:
+            from provero.observability import clear_observers
+
+            clear_observers()

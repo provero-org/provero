@@ -8,7 +8,7 @@ authors = [
     { name = "Provero Contributors" },
 ]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
@@ -43,8 +43,13 @@ redshift = ["redshift-connector>=2.1"]
 kafka = ["confluent-kafka>=2.3"]
 prophet = ["prophet>=1.1"]
 server = ["fastapi>=0.110", "uvicorn>=0.29"]
+observability = [
+    "opentelemetry-api>=1.24",
+    "opentelemetry-sdk>=1.24",
+    "prometheus-client>=0.20",
+]
 all = [
-    "provero[dataframe,postgres,snowflake,bigquery,server]",
+    "provero[dataframe,postgres,snowflake,bigquery,server,observability]",
 ]
 dev = [
     "pytest>=8.0",
@@ -54,6 +59,7 @@ dev = [
     "ruff>=0.4",
     "mypy>=1.10",
     "pre-commit>=3.7",
+    "prometheus-client>=0.20",
 ]
 
 [project.scripts]

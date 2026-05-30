@@ -23,11 +23,18 @@ from provero.connectors.duckdb import DuckDBConnection
 
 
 class DataFrameConnection(DuckDBConnection):
-    """Connection that wraps a DataFrame registered in DuckDB."""
+    """Connection that wraps a DataFrame registered in DuckDB.
+
+    Inherits context-manager support from :class:`DuckDBConnection`, so the
+    in-memory DuckDB instance is closed automatically when used with ``with``.
+    """
 
     def __init__(self, conn: duckdb.DuckDBPyConnection, table_name: str) -> None:
         super().__init__(conn)
         self._table_name = table_name
+
+    def __enter__(self) -> DataFrameConnection:
+        return self
 
 
 class DataFrameConnector:
@@ -42,8 +49,8 @@ class DataFrameConnector:
         import pandas as pd
         df = pd.read_csv("orders.csv")
         connector = DataFrameConnector(df, table_name="orders")
-        conn = connector.connect()
-        result = conn.execute("SELECT COUNT(*) as cnt FROM orders")
+        with connector.connect() as conn:
+            result = conn.execute("SELECT COUNT(*) as cnt FROM orders")
     """
 
     def __init__(
@@ -68,4 +75,4 @@ class DataFrameConnector:
         return DataFrameConnection(conn, self._table_name)
 
     def disconnect(self, connection: DataFrameConnection) -> None:
-        connection._conn.close()
+        connection.close()

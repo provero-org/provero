@@ -15,17 +15,38 @@
 
 from __future__ import annotations
 
+from types import TracebackType
 from typing import Any, Protocol
 
 
 class Connection(Protocol):
-    """A database connection that can execute SQL."""
+    """A database connection that can execute SQL.
+
+    Connections support the context-manager protocol, so they can be used
+    directly with ``with`` to guarantee the underlying resource is closed::
+
+        with connector.connect() as conn:
+            rows = conn.execute("SELECT 1")
+    """
 
     def execute(self, query: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]: ...
 
     def get_columns(self, table: str) -> list[dict[str, Any]]:
         """Return column metadata: [{name, type, nullable}, ...]."""
         ...
+
+    def close(self) -> None:
+        """Close the underlying connection, releasing its resources."""
+        ...
+
+    def __enter__(self) -> Connection: ...
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None: ...
 
 
 class Connector(Protocol):

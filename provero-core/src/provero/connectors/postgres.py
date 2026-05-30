@@ -11,27 +11,66 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""PostgreSQL connector via SQLAlchemy."""
+"""PostgreSQL connector via SQLAlchemy.
+
+This module backs the postgres/mysql/snowflake/bigquery/redshift/databricks
+connectors. It is hardened for scale with configurable connection pooling,
+bounded retry-with-backoff on transient errors, and best-effort per-driver
+timeouts. All new constructor arguments are optional and default to the
+historical behavior, so existing callers are unaffected.
+"""
 
 from __future__ import annotations
 
+from types import TracebackType
 from typing import Any, cast
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
+from provero.connectors.pool import PoolConfig, build_engine_kwargs
+from provero.connectors.retry import RetryConfig, retry_call
+
 
 class SQLAlchemyConnection:
-    """SQLAlchemy-based connection wrapper."""
+    """SQLAlchemy-based connection wrapper.
 
-    def __init__(self, engine: Engine) -> None:
+    Supports the context-manager protocol so the underlying SQLAlchemy
+    connection is always closed, even when used directly::
+
+        with connector.connect() as conn:
+            conn.execute("SELECT 1")
+
+    Queries are retried on transient connection errors when a non-trivial
+    ``RetryConfig`` is supplied; programming errors (missing table, bad SQL)
+    are never retried and surface immediately.
+    """
+
+    def __init__(self, engine: Engine, retry: RetryConfig | None = None) -> None:
         self._engine = engine
-        self._conn = engine.connect()
+        self._retry = retry if retry is not None else RetryConfig()
+        # Establishing the connection itself can hit transient failures, so
+        # the initial connect is also retried under the same policy.
+        self._conn = retry_call(engine.connect, self._retry)
+
+    def __enter__(self) -> SQLAlchemyConnection:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.close()
 
     def execute(self, query: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-        result = self._conn.execute(text(query), params or {})
-        columns = list(result.keys())
-        return [dict(zip(columns, row, strict=True)) for row in result.fetchall()]
+        def _run() -> list[dict[str, Any]]:
+            result = self._conn.execute(text(query), params or {})
+            columns = list(result.keys())
+            return [dict(zip(columns, row, strict=True)) for row in result.fetchall()]
+
+        return retry_call(_run, self._retry)
 
     def get_columns(self, table: str) -> list[dict[str, Any]]:
         if "." in table:
@@ -66,17 +105,31 @@ class SQLAlchemyConnection:
 
 
 class PostgresConnector:
-    """Connector for PostgreSQL databases."""
+    """Connector for PostgreSQL databases.
 
-    def __init__(self, connection_string: str) -> None:
+    The engine is created lazily on first ``connect`` and reused, so the
+    SQLAlchemy connection pool is shared across connections. Pooling and
+    retry behavior are configurable via the optional ``pool`` and ``retry``
+    arguments; both default to backward-compatible no-ops.
+    """
+
+    def __init__(
+        self,
+        connection_string: str,
+        pool: PoolConfig | None = None,
+        retry: RetryConfig | None = None,
+    ) -> None:
         self.connection_string = connection_string
+        self._pool = pool if pool is not None else PoolConfig()
+        self._retry = retry if retry is not None else RetryConfig()
         self._engine: Engine | None = None
 
     def connect(self) -> SQLAlchemyConnection:
         # Lazily create engine on first connect, then reuse for pooling
         if self._engine is None:
-            self._engine = create_engine(self.connection_string)
-        return SQLAlchemyConnection(self._engine)
+            kwargs = build_engine_kwargs(self.connection_string, self._pool)
+            self._engine = create_engine(self.connection_string, **kwargs)
+        return SQLAlchemyConnection(self._engine, retry=self._retry)
 
     def disconnect(self, connection: SQLAlchemyConnection) -> None:
         connection.close()
@@ -117,17 +170,35 @@ class PostgresConnector:
 
 
 class SQLAlchemyConnector:
-    """Generic connector for any SQLAlchemy-supported database."""
+    """Generic connector for any SQLAlchemy-supported database.
 
-    def __init__(self, connection_string: str) -> None:
+    A fresh engine is created per ``connect`` and disposed on ``disconnect``
+    to avoid leaking pooled engines in long-running or parallel runs. Pooling
+    and retry behavior are configurable via the optional ``pool`` and
+    ``retry`` arguments; both default to backward-compatible no-ops.
+    """
+
+    def __init__(
+        self,
+        connection_string: str,
+        pool: PoolConfig | None = None,
+        retry: RetryConfig | None = None,
+    ) -> None:
         self.connection_string = connection_string
+        self._pool = pool if pool is not None else PoolConfig()
+        self._retry = retry if retry is not None else RetryConfig()
 
     def connect(self) -> SQLAlchemyConnection:
-        engine = create_engine(self.connection_string)
-        return SQLAlchemyConnection(engine)
+        kwargs = build_engine_kwargs(self.connection_string, self._pool)
+        engine = create_engine(self.connection_string, **kwargs)
+        return SQLAlchemyConnection(engine, retry=self._retry)
 
     def disconnect(self, connection: SQLAlchemyConnection) -> None:
+        # This connector creates a fresh engine per connect (no caching), so
+        # the engine must be disposed alongside the connection to avoid
+        # leaking pooled engines in long-running or parallel runs.
         connection.close()
+        connection._engine.dispose()
 
     def get_schema(self, connection: SQLAlchemyConnection, table: str) -> list[dict[str, Any]]:
         return connection.get_columns(table)

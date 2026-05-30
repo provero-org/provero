@@ -18,7 +18,7 @@ from __future__ import annotations
 import yaml
 
 from provero.core.compiler import CheckConfig, ProveroConfig, SourceConfig, SuiteConfig
-from provero.exporters.dbt import export_config, export_suite
+from provero.exporters.dbt import _map_check_to_dbt, export_config, export_suite
 
 
 def _make_suite(name: str, checks: list[CheckConfig]) -> SuiteConfig:
@@ -128,6 +128,163 @@ class TestRangeMapping:
         model, _comments = export_suite(suite)
         test = model["columns"][0]["tests"][0]
         assert test["dbt_utils.expression_is_true"]["expression"] == "<= 999"
+
+
+class TestRangeNonFiniteBounds:
+    """A10: non-finite range bounds must not emit invalid SQL like ``>= inf``."""
+
+    def test_inf_min_produces_comment_not_sql(self):
+        suite = _make_suite(
+            "orders",
+            [
+                CheckConfig(
+                    check_type="range",
+                    column="amount",
+                    params={"min": float("inf"), "max": 100},
+                )
+            ],
+        )
+        model, comments = export_suite(suite)
+        # No column test must be generated for the invalid range.
+        assert "columns" not in model
+        assert any("non-finite/invalid bound" in c and "amount" in c for c in comments)
+
+    def test_negative_inf_max_produces_comment(self):
+        suite = _make_suite(
+            "orders",
+            [
+                CheckConfig(
+                    check_type="range",
+                    column="amount",
+                    params={"max": float("-inf")},
+                )
+            ],
+        )
+        model, comments = export_suite(suite)
+        assert "columns" not in model
+        assert any("non-finite/invalid bound" in c for c in comments)
+
+    def test_nan_bound_produces_comment(self):
+        suite = _make_suite(
+            "orders",
+            [
+                CheckConfig(
+                    check_type="range",
+                    column="amount",
+                    params={"min": 0, "max": float("nan")},
+                )
+            ],
+        )
+        model, comments = export_suite(suite)
+        assert "columns" not in model
+        assert any("non-finite/invalid bound" in c for c in comments)
+
+    def test_non_finite_does_not_emit_invalid_yaml_expression(self):
+        config = _make_config(
+            [
+                _make_suite(
+                    "orders",
+                    [
+                        CheckConfig(
+                            check_type="range",
+                            column="amount",
+                            params={"min": float("inf")},
+                        )
+                    ],
+                )
+            ]
+        )
+        result = export_config(config)
+        parsed = yaml.safe_load(result)
+        # The model must have no columns/tests, so no SQL expression leaks.
+        model = parsed["models"][0]
+        assert "columns" not in model
+        assert "expression_is_true" not in result
+        assert ">= inf" not in result
+
+    def test_finite_bounds_still_work(self):
+        suite = _make_suite(
+            "orders",
+            [
+                CheckConfig(
+                    check_type="range",
+                    column="amount",
+                    params={"min": -5, "max": 5.5},
+                )
+            ],
+        )
+        model, comments = export_suite(suite)
+        expr = model["columns"][0]["tests"][0]["dbt_utils.expression_is_true"]["expression"]
+        assert expr == ">= -5 and <= 5.5"
+        assert comments == []
+
+    def test_bool_bound_rejected(self):
+        suite = _make_suite(
+            "orders",
+            [
+                CheckConfig(
+                    check_type="range",
+                    column="amount",
+                    params={"min": True},
+                )
+            ],
+        )
+        model, comments = export_suite(suite)
+        assert "columns" not in model
+        assert any("non-finite/invalid bound" in c for c in comments)
+
+
+class TestAcceptedValuesEmpty:
+    """Empty/None accepted_values must not emit ``values: null`` invalid YAML."""
+
+    def test_none_values_produces_comment(self):
+        suite = _make_suite(
+            "orders",
+            [CheckConfig(check_type="accepted_values", column="status", params={})],
+        )
+        model, comments = export_suite(suite)
+        assert "columns" not in model
+        assert any("accepted_values" in c and "no values specified" in c for c in comments)
+
+    def test_empty_values_produces_comment(self):
+        suite = _make_suite(
+            "orders",
+            [
+                CheckConfig(
+                    check_type="accepted_values",
+                    column="status",
+                    params={"values": []},
+                )
+            ],
+        )
+        model, comments = export_suite(suite)
+        assert "columns" not in model
+        assert any("no values specified" in c for c in comments)
+
+
+class TestRangeNoBounds:
+    """A range with neither min nor max must not register a column entry."""
+
+    def test_no_bounds_no_column(self):
+        suite = _make_suite(
+            "orders",
+            [CheckConfig(check_type="range", column="amount", params={})],
+        )
+        model, comments = export_suite(suite)
+        assert "columns" not in model
+        assert any("no min/max specified" in c for c in comments)
+
+    def test_no_bounds_maps_column_to_none(self):
+        # Non-vacuous: call the mapper directly and assert the first tuple
+        # element (column) is None. On the old buggy code it returned the
+        # column name ("amount"), inconsistent with every other unmappable
+        # branch which returns None for the column.
+        check = CheckConfig(check_type="range", column="amount", params={})
+        mapped_col, dbt_test, comment = _map_check_to_dbt(check)
+        assert mapped_col is None
+        assert dbt_test is None
+        assert comment is not None
+        assert "no min/max specified" in comment
 
 
 class TestUnmappableChecks:

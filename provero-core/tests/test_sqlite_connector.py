@@ -139,6 +139,33 @@ class TestSQLiteConnection:
             conn.execute("SELECT * FROM no_such_table")
         connector.disconnect(conn)
 
+    def test_context_manager_closes_connection(self, sqlite_connector: SQLAlchemyConnector):
+        """Regression for A9: ``with`` must close the SQLAlchemy connection."""
+        with sqlite_connector.connect() as conn:
+            assert conn.execute("SELECT COUNT(*) AS cnt FROM orders")[0]["cnt"] == 5
+            assert conn._conn.closed is False
+        assert conn._conn.closed is True
+
+    def test_context_manager_enter_returns_self(self, sqlite_connector: SQLAlchemyConnector):
+        conn = sqlite_connector.connect()
+        with conn as entered:
+            assert entered is conn
+        assert conn._conn.closed is True
+
+    def test_context_manager_closes_on_exception(self, sqlite_connector: SQLAlchemyConnector):
+        conn = sqlite_connector.connect()
+        with pytest.raises(RuntimeError), conn:
+            raise RuntimeError("boom")
+        assert conn._conn.closed is True
+
+    def test_disconnect_disposes_engine(self, sqlite_connector: SQLAlchemyConnector):
+        """Regression for M10: per-connect engine must be disposed on disconnect."""
+        conn = sqlite_connector.connect()
+        pool_before = conn._engine.pool
+        sqlite_connector.disconnect(conn)
+        # dispose() swaps the connection pool; old behaviour left it untouched.
+        assert conn._engine.pool is not pool_before
+
 
 # ---------------------------------------------------------------------------
 # Individual check tests against SQLite

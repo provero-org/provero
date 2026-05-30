@@ -15,7 +15,107 @@
 
 from __future__ import annotations
 
-from provero.contracts.models import ContractChange, ContractConfig
+from provero.contracts.models import (
+    ChangeLevel,
+    ContractChange,
+    ContractConfig,
+    SeverityLevel,
+    SeverityPolicy,
+    VersionedDiff,
+)
+
+
+def _major_version(version: str) -> int:
+    """Extract the leading integer (major) component of a version string.
+
+    Returns ``0`` when the version has no parseable leading integer so that
+    callers never crash on free-form version strings.
+    """
+    head = version.strip().split(".", 1)[0]
+    try:
+        return int(head)
+    except ValueError:
+        return 0
+
+
+def classify_changes(changes: list[ContractChange]) -> ChangeLevel:
+    """Classify a list of contract changes into an aggregate change level.
+
+    Returns :attr:`ChangeLevel.BREAKING` if any change is breaking,
+    :attr:`ChangeLevel.NON_BREAKING` if there are only non-breaking changes,
+    and :attr:`ChangeLevel.NONE` when the list is empty.
+    """
+    if not changes:
+        return ChangeLevel.NONE
+    if any(c.is_breaking for c in changes):
+        return ChangeLevel.BREAKING
+    return ChangeLevel.NON_BREAKING
+
+
+def apply_severity_policy(
+    changes: list[ContractChange],
+    policy: SeverityPolicy | None = None,
+) -> SeverityLevel:
+    """Apply a severity policy to a set of changes and return the verdict.
+
+    The per-rule overrides take precedence: if any changed field matches a
+    ``per_rule`` key (by prefix) the highest matching override wins. Otherwise
+    the policy's ``on_breaking`` severity applies when a breaking change is
+    present, ``on_non_breaking`` applies for non-breaking changes, and an empty
+    change set yields :attr:`SeverityLevel.INFO`.
+    """
+    policy = policy or SeverityPolicy()
+    level = classify_changes(changes)
+
+    rank = {SeverityLevel.INFO: 0, SeverityLevel.WARNING: 1, SeverityLevel.BLOCKER: 2}
+    override: SeverityLevel | None = None
+    for change in changes:
+        for prefix, sev in policy.per_rule.items():
+            matches = change.field == prefix or change.field.startswith(f"{prefix}.")
+            if matches and (override is None or rank[sev] > rank[override]):
+                override = sev
+
+    base: SeverityLevel
+    if level == ChangeLevel.BREAKING:
+        base = policy.on_breaking
+    elif level == ChangeLevel.NON_BREAKING:
+        base = policy.on_non_breaking
+    else:
+        base = SeverityLevel.INFO
+
+    if override is not None and rank[override] > rank[base]:
+        return override
+    return base
+
+
+def versioned_diff(
+    old: ContractConfig,
+    new: ContractConfig,
+    policy: SeverityPolicy | None = None,
+) -> VersionedDiff:
+    """Produce a structured, version-aware diff between two contracts.
+
+    Computes the raw change list via :func:`diff_contracts`, classifies it,
+    applies the severity policy (defaulting to ``new.severity_policy``), and
+    flags whether a breaking change lacks an accompanying major version bump.
+    """
+    changes = diff_contracts(old, new)
+    level = classify_changes(changes)
+    effective_policy = policy if policy is not None else new.severity_policy
+    severity = apply_severity_policy(changes, effective_policy)
+
+    version_bumped = _major_version(new.version) > _major_version(old.version)
+    version_warning = level == ChangeLevel.BREAKING and not version_bumped
+
+    return VersionedDiff(
+        old_version=old.version,
+        new_version=new.version,
+        changes=changes,
+        change_level=level,
+        severity=severity,
+        version_bumped=version_bumped,
+        version_warning=version_warning,
+    )
 
 
 def diff_contracts(old: ContractConfig, new: ContractConfig) -> list[ContractChange]:

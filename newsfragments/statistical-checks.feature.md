@@ -1,0 +1,1 @@
+Add four statistical check types: `distribution` (mean/stddev bounds via population statistics), `cardinality` (distinct-count and distinct-ratio bounds), `drift` (Population Stability Index against a discrete baseline, stdlib-only), and `cross_table_count` (row-count parity or ratio between two tables on the same source). Each self-registers and is covered by known-answer tests.

@@ -56,10 +56,18 @@ def convert_soda_to_provero(soda_yaml: str, source_type: str = "duckdb") -> str:
     tables: list[tuple[str, list[dict[str, Any]], list[str]]] = []
 
     for key, checks_list in data.items():
-        match = re.match(r"checks\s+for\s+(\S+)", key)
+        # Accept bare identifiers (no spaces) as well as quoted identifiers
+        # that may contain spaces, e.g. ``checks for "my table"``. A bare
+        # ``\S+`` would truncate a quoted name at the first space.
+        match = re.match(
+            r"""checks\s+for\s+("[^"]+"|'[^']+'|\S+)""",
+            key,
+        )
         if not match:
             continue
         table_name = match.group(1)
+        if len(table_name) >= 2 and table_name[0] in "\"'" and table_name[-1] == table_name[0]:
+            table_name = table_name[1:-1]
         provero_checks: list[dict[str, Any]] = []
         unsupported: list[str] = []
         if not isinstance(checks_list, list):
@@ -172,7 +180,11 @@ def _convert_dict_check(
         if isinstance(fail_config, dict):
             required_cols = fail_config.get("when required column missing", [])
             if isinstance(required_cols, list):
+                seen: set[Any] = set()
                 for col in required_cols:
+                    if col in seen:
+                        continue
+                    seen.add(col)
                     provero_checks.append({"not_null": col})
                 return
 

@@ -42,6 +42,25 @@ def df_connection():
     connector.disconnect(conn)
 
 
+class TestDataFrameContextManager:
+    """Regression for A9: DataFrame connections must support ``with`` (no leak)."""
+
+    def test_with_block_closes_connection(self):
+        df = pandas.DataFrame({"x": [1, 2, 3]})
+        connector = DataFrameConnector(df, table_name="t")
+        with connector.connect() as conn:
+            assert conn.execute("SELECT COUNT(*) AS cnt FROM t")[0]["cnt"] == 3
+        with pytest.raises(Exception, match=r"[Cc]losed"):
+            conn.execute("SELECT 1")
+
+    def test_enter_returns_connection(self):
+        df = pandas.DataFrame({"x": [1]})
+        connector = DataFrameConnector(df, table_name="t")
+        conn = connector.connect()
+        with conn as entered:
+            assert entered is conn
+
+
 class TestDataFrameConnector:
     def test_execute_query(self, df_connection):
         result = df_connection.execute("SELECT COUNT(*) as cnt FROM orders")

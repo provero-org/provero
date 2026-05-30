@@ -129,7 +129,11 @@ def create_connector(source: SourceConfig):
         if not connection:
             msg = f"{source_type} connector requires a connection string"
             raise ValueError(msg)
-        return connector_class(connection_string=connection)
+        # SQLAlchemy-backed connectors accept optional pool/retry tuning.
+        pool, retry = _build_pool_and_retry(source)
+        if pool is None and retry is None:
+            return connector_class(connection_string=connection)
+        return connector_class(connection_string=connection, pool=pool, retry=retry)
 
     # 3. Nothing found
     available = sorted(set(list(_BUILTINS.keys()) + list(_PLUGIN_REGISTRY.keys())))
@@ -140,6 +144,53 @@ def create_connector(source: SourceConfig):
         f"Install a plugin (pip install provero-connector-{source_type}) or check the type name."
     )
     raise ValueError(msg)
+
+
+def _build_pool_and_retry(source: SourceConfig) -> tuple[Any, Any]:
+    """Build PoolConfig/RetryConfig from source tuning keys.
+
+    Returns ``(None, None)`` when no pool or retry key is set so the caller
+    can preserve the exact pre-existing constructor call (and behavior). When
+    any tuning key is present, both configs are built (with safe defaults for
+    the unset half) and returned.
+    """
+    pool_keys = (
+        source.pool_size,
+        source.max_overflow,
+        source.pool_pre_ping,
+        source.pool_recycle,
+        source.pool_timeout,
+        source.connect_timeout,
+        source.query_timeout,
+    )
+    retry_keys = (
+        source.retries,
+        source.retry_base_delay,
+        source.retry_max_delay,
+        source.retry_jitter,
+    )
+    if all(k is None for k in pool_keys) and all(k is None for k in retry_keys):
+        return None, None
+
+    from provero.connectors.pool import PoolConfig
+    from provero.connectors.retry import RetryConfig
+
+    pool = PoolConfig(
+        pool_size=source.pool_size,
+        max_overflow=source.max_overflow,
+        pool_pre_ping=source.pool_pre_ping,
+        pool_recycle=source.pool_recycle,
+        pool_timeout=source.pool_timeout,
+        connect_timeout=source.connect_timeout,
+        query_timeout=source.query_timeout,
+    )
+    retry = RetryConfig(
+        attempts=source.retries or 1,
+        base_delay=source.retry_base_delay if source.retry_base_delay is not None else 0.1,
+        max_delay=source.retry_max_delay if source.retry_max_delay is not None else 5.0,
+        jitter=source.retry_jitter if source.retry_jitter is not None else True,
+    )
+    return pool, retry
 
 
 def list_connectors() -> list[str]:

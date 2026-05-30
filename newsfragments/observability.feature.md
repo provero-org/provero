@@ -1,0 +1,1 @@
+Add an observability foundation wired into `provero run`: a structured JSON audit log (`--audit-log`), OpenTelemetry spans (`--otel`), and Prometheus metrics exposition (`--metrics-file`). Observers are pluggable via an `ExecutionObserver` protocol, optional dependencies are guarded behind the `observability` extra, and connection strings and secrets are redacted in audit output.

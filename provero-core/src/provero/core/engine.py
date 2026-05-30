@@ -168,28 +168,42 @@ def run_suite(
     When optimize=True (default), batchable checks are compiled into a
     single SQL query. Non-batchable checks run individually after.
     """
+    from provero.observability import hooks
+
     run_id = str(uuid.uuid4())
     suite_start = time.monotonic()
     started_at = datetime.now(tz=UTC)
 
     results: list[CheckResult] = []
-    connection = connector.connect()
 
+    hooks.emit("on_suite_start", suite, run_id)
     try:
-        return _run_suite_inner(
-            suite,
-            connector,
-            connection,
-            optimize,
-            parallel,
-            max_workers,
-            run_id,
-            suite_start,
-            started_at,
-            results,
-        )
-    finally:
-        connector.disconnect(connection)
+        connection = connector.connect()
+        try:
+            suite_result = _run_suite_inner(
+                suite,
+                connector,
+                connection,
+                optimize,
+                parallel,
+                max_workers,
+                run_id,
+                suite_start,
+                started_at,
+                results,
+            )
+        finally:
+            connector.disconnect(connection)
+    except BaseException as error:
+        hooks.emit_error(suite, run_id, error)
+        raise
+
+    if hooks.has_observers():
+        for check in suite_result.checks:
+            hooks.emit("on_check_complete", check)
+        hooks.emit("on_suite_complete", suite_result)
+
+    return suite_result
 
 
 def _run_suite_inner(
@@ -314,7 +328,29 @@ def _run_suite_inner(
                 for runner, check_config in runnable
             }
             for future in as_completed(futures):
-                results.append(future.result())
+                check_config = futures[future]
+                try:
+                    results.append(future.result())
+                except Exception as e:
+                    # A check runner should never raise (errors are converted to
+                    # ERROR results inside _run_single_check), but the per-thread
+                    # connection cleanup in its finally block can. Convert any such
+                    # exception into an ERROR result instead of aborting the whole
+                    # executor loop and discarding the other results.
+                    results.append(
+                        CheckResult(
+                            check_name=(f"{check_config.check_type}:{check_config.column or ''}"),
+                            check_type=check_config.check_type,
+                            status=Status.ERROR,
+                            severity=Severity.CRITICAL,
+                            source=suite.source.type,
+                            table=suite.source.table,
+                            column=check_config.column,
+                            observed_value=str(e),
+                            run_id=run_id,
+                            suite=suite.name,
+                        )
+                    )
     else:
         # Sequential execution (default)
         for runner, check_config in runnable:

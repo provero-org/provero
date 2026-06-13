@@ -302,3 +302,57 @@ class TestParallelDisconnectFailure:
         for c in result.checks:
             assert c.status == Status.ERROR
             assert "simulated cleanup failure" in str(c.observed_value)
+
+
+class TestDescriptionPropagation:
+    """description: declared on a check flows through to CheckResult."""
+
+    def test_description_on_individual_check(self, orders_connector):
+        suite = _make_suite(
+            [
+                CheckConfig(
+                    check_type="range",
+                    column="amount",
+                    params={"min": 0, "max": 10000},
+                    description="Order amount must be in [0, 10000]",
+                ),
+            ]
+        )
+        # optimize=False forces the per-check path through _run_single_check.
+        result = run_suite(suite, orders_connector, optimize=False)
+        assert len(result.checks) == 1
+        assert result.checks[0].description == "Order amount must be in [0, 10000]"
+
+    def test_description_on_batched_not_null(self, orders_connector):
+        suite = _make_suite(
+            [
+                CheckConfig(
+                    check_type="not_null",
+                    columns=["order_id", "customer_id"],
+                    description="Required identity fields",
+                ),
+            ]
+        )
+        # optimize=True routes through plan_batch + execute_batch, exercising
+        # both the per-column expansion (preserving description) and the
+        # batched-result decoration loop in _run_suite_inner.
+        result = run_suite(suite, orders_connector, optimize=True)
+        assert len(result.checks) == 2  # one per column
+        for c in result.checks:
+            assert c.description == "Required identity fields"
+
+    def test_description_on_custom_sql(self, orders_connector):
+        suite = _make_suite(
+            [
+                CheckConfig(
+                    check_type="custom_sql",
+                    params={
+                        "name": "all_amounts_positive",
+                        "query": "SELECT MIN(amount) > 0 FROM orders",
+                    },
+                    description="All order amounts must be positive",
+                ),
+            ]
+        )
+        result = run_suite(suite, orders_connector, optimize=False)
+        assert result.checks[0].description == "All order amounts must be positive"

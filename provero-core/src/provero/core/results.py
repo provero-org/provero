@@ -45,7 +45,7 @@ class CheckResult(BaseModel):
     check_type: str
     status: Status
     severity: Severity = Severity.CRITICAL
-
+    description: str | None = None
     source: str = ""
     table: str = ""
     column: str | None = None

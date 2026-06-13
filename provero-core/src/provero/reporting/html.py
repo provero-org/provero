@@ -61,6 +61,7 @@ def generate_html_report(
             {
                 "check_type": c.check_type,
                 "check_name": c.check_name,
+                "description": c.description or "",
                 "column": c.column,
                 "status": c.status.value,
                 "observed_value": str(c.observed_value) if c.observed_value is not None else "",
@@ -76,6 +77,7 @@ def generate_html_report(
         failing_data.append(
             {
                 "check_name": c.check_name,
+                "description": c.description or "",
                 "failing_rows_query": c.failing_rows_query,
                 "failing_rows_sample": c.failing_rows_sample,
             }

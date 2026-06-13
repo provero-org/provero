@@ -112,6 +112,7 @@
       <thead>
         <tr>
           <th>Check</th>
+          <th>Description</th>
           <th>Column</th>
           <th>Status</th>
           <th>Observed</th>
@@ -123,6 +124,7 @@
         {% for check in checks %}
         <tr>
           <td>{{ check.check_type }}</td>
+          <td>{{ check.description or '—' }}</td>
           <td>{{ check.column or '-' }}</td>
           <td class="status-{{ check.status }}">{{ check.status | upper }}</td>
           <td>{{ check.observed_value }}</td>
@@ -141,6 +143,9 @@
     {% for check in failing_checks %}
     <div class="failing-check">
       <h3>{{ check.check_name }}</h3>
+      {% if check.description %}
+      <p style="color: #6c757d; font-size: 0.85rem; margin-bottom: 0.5rem;">{{ check.description }}</p>
+      {% endif %}
       {% if check.failing_rows_query %}
       <div class="query">{{ check.failing_rows_query }}</div>
       {% endif %}

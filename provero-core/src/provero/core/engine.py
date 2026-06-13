@@ -88,6 +88,8 @@ def _run_single_check(
         result.suite = suite_name
         result.source = source_type
         result.table = table
+        if check_config.description and not result.description:
+            result.description = check_config.description
         result.duration_ms = int((time.monotonic() - check_start) * 1000)
 
         # Downgrade FAIL to WARN for INFO/WARNING severity
@@ -149,6 +151,7 @@ def _expand_multi_column_checks(checks: list[CheckConfig]) -> list[CheckConfig]:
                         check_type="not_null",
                         column=col,
                         severity=check.severity,
+                        description=check.description,
                     )
                 )
         else:
@@ -246,12 +249,25 @@ def _run_suite_inner(
             try:
                 batch_results = execute_batch(connection, plan)
                 batch_ms = int((time.monotonic() - batch_start) * 1000)
+                # Build a lookup from each batched CheckResult to its
+                # originating CheckConfig so we can honour ``description`` on
+                # the batched path.
+                config_by_key: dict[tuple[str, str | None], CheckConfig] = {}
+                for metric in plan.metrics:
+                    metric_cfg = metric.check_config
+                    if metric_cfg.check_type == "_internal":
+                        continue
+                    config_by_key.setdefault((metric_cfg.check_type, metric_cfg.column), metric_cfg)
+
                 for r in batch_results:
                     r.run_id = run_id
                     r.suite = suite.name
                     r.source = suite.source.type
                     r.table = suite.source.table
                     r.duration_ms = batch_ms
+                    result_cfg = config_by_key.get((r.check_type, r.column))
+                    if result_cfg is not None and result_cfg.description and not r.description:
+                        r.description = result_cfg.description
                     r.apply_severity()
                 results.extend(batch_results)
             except Exception as e:

@@ -56,13 +56,21 @@ class SourceConfig(BaseModel):
 
 
 class CheckConfig(BaseModel):
-    """Single check configuration."""
+    """Single check configuration.
+
+    ``description`` is an optional, free-form one-line summary of what the
+    check asserts. It is surfaced on the resulting :class:`CheckResult` and in
+    the HTML report so opaque check identifiers (for example ``custom_sql``)
+    can be paired with explanatory text. Mirrors the existing ``description``
+    field on :class:`ColumnContract`. Optional.
+    """
 
     check_type: str
     column: str | None = None
     columns: list[str] = Field(default_factory=list)
     params: dict[str, Any] = Field(default_factory=dict)
     severity: str | None = None
+    description: str | None = None
 
 
 class SuiteConfig(BaseModel):
@@ -103,13 +111,18 @@ def parse_check(raw: dict[str, Any] | str) -> CheckConfig:
                 return CheckConfig(check_type=check_type, params={"query": value})
             return CheckConfig(check_type=check_type, column=value)
         if isinstance(value, dict):
-            params = {k: v for k, v in value.items() if k not in ("column", "columns", "severity")}
+            params = {
+                k: v
+                for k, v in value.items()
+                if k not in ("column", "columns", "severity", "description")
+            }
             return CheckConfig(
                 check_type=check_type,
                 column=value.get("column"),
                 columns=value.get("columns", []),
                 params=params,
                 severity=value.get("severity"),
+                description=value.get("description"),
             )
         return CheckConfig(check_type=check_type, params={"value": value})
 

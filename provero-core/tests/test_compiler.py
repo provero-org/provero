@@ -74,6 +74,25 @@ class TestParseCheck:
         with pytest.raises(ValueError, match="Invalid check definition"):
             parse_check({})
 
+    def test_description_field_parsed(self):
+        check = parse_check(
+            {
+                "range": {
+                    "column": "amount",
+                    "min": 0,
+                    "max": 1000,
+                    "description": "Order amount must be between 0 and 1000",
+                }
+            }
+        )
+        assert check.description == "Order amount must be between 0 and 1000"
+        # description should not leak into params
+        assert "description" not in check.params
+
+    def test_description_default_none(self):
+        check = parse_check({"unique": "order_id"})
+        assert check.description is None
+
 
 class TestCompileFile:
     def test_simple_format(self, tmp_path: Path):
